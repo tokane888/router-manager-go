@@ -1,0 +1,41 @@
+---
+version: "2"
+
+run:
+  go: "1.24"
+
+linters:
+  enable:
+    #  エラーチェック系
+    - errcheck  # エラーチェックの漏れを検出
+    - errorlint  # エラー処理のベストプラクティス
+    - govet  # コンパイルエラーや疑わしいコードを検出
+    - staticcheck  # 高度な静的解析
+
+    #  コード品質系
+    - gocritic  # コードの改善提案
+    - gosec  # セキュリティチェック
+    - ineffassign  # 無効な代入の検出
+    - noctx  # contextの使用漏れ
+    - rowserrcheck  # データベース操作のエラーチェック
+    - sqlclosecheck  # SQLのクローズ漏れ
+
+    #  パフォーマンス系
+    - perfsprint  # 文字列連結の最適化
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+  exclusions:
+    rules:
+      #  test fileで一部のlinterを無効化
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports

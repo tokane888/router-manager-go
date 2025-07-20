@@ -1,0 +1,102 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/go
+{
+  "name": "Go",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    // TODO: claude code拡張。許可されない環境では除去
+    "ghcr.io/anthropics/devcontainer-features/claude-code:latest": {},
+
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+
+    // keyring等でOSが保持している認証情報はマウント出来ないので、その場合はlocalで実行
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+  // Features to add to the dev container. More info: https://containers.dev/features.
+  // "features": {},
+  // Use 'forwardPorts' to make a list of ports inside the container available locally.
+  // "forwardPorts": [],
+  // Use 'postCreateCommand' to run commands after the container is created.
+  // "postCreateCommand": "go version",
+  // Configure tool-specific properties.
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "adpyke.vscode-sql-formatter", // dprintのSQL正式対応までの暫定対応
+        "dprint.dprint",
+        "foxundermoon.shell-format",
+        "github.vscode-github-actions",
+        "golang.go@prerelease",
+        "ms-azuretools.vscode-docker",
+        "redhat.vscode-yaml",
+        "streetsidesoftware.code-spell-checker",
+        "timonwong.shellcheck",
+        "yzhang.markdown-all-in-one",
+        // TODO: Cline。許可されない環境では削除
+        "saoudrizwan.claude-dev"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "dprint.dprint",
+        "[go]": {
+          "editor.defaultFormatter": "golang.go",
+          "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+          },
+          "files.insertFinalNewline": true,
+          "lintTool": "golangci-lint",
+          "lintFlags": [
+            "--path-mode=abs",
+            "--fast-only"
+          ],
+          "formatTool": "custom",
+          "alternateTools": {
+            "customFormatter": "golangci-lint"
+          },
+          "formatFlags": [
+            "fmt",
+            "--stdin"
+          ]
+        },
+        "gopls": {
+          "formatting.gofumpt": true
+        },
+        "[markdown]": {
+          "editor.codeActionsOnSave": {
+            "source.fixAll.markdownlint": "explicit"
+          },
+          "editor.defaultFormatter": "dprint.dprint"
+        },
+        "[sql]": {
+          // dprintのSQL正式対応までの暫定対応
+          "editor.defaultFormatter": "adpyke.vscode-sql-formatter"
+        },
+        "[yaml]": {
+          "editor.defaultFormatter": "redhat.vscode-yaml",
+          "yaml.schemas": {
+            "https://json.schemastore.org/github-workflow.json": ".github/workflows/*.yml"
+          }
+        }
+      }
+    }
+  },
+  "mounts": [
+    // devcontainer上からgit pull/push可能にするための設定
+    "source=${localEnv:HOME}/.ssh,target=/tmp/.ssh,type=bind,consistency=cached",
+    // github cli設定
+    "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached",
+
+    // TODO: claude codeの使用が許可されない場合は削除
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached"
+  ],
+  "postStartCommand": "bash ./.devcontainer/postStartCommand.sh",
+
+  "containerEnv": {
+    "TZ": "Asia/Tokyo"
+  }
+  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+  // "remoteUser": "root"
+}

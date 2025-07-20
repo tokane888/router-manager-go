@@ -1,0 +1,126 @@
+---
+name: Test and Lint
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  find-modules:
+    name: Find Go Modules
+    runs-on: ubuntu-latest
+    outputs:
+      all-modules: ${{ steps.find.outputs.all-modules }}
+      test-modules: ${{ steps.find.outputs.test-modules }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Find all Go modules
+        id: find
+        run: |
+          # -xオプションを指定しないとshell実行ログが出力されないため指定
+          set -x
+          # Find all modules
+          all_modules=$(find ./services ./pkg -name "go.mod" -print0 | xargs -0 dirname | sed 's|^\./||' | sort)
+
+          # Find modules with test files
+          test_modules=""
+          for module in "$all_modules"; do
+            if test -n "$(find "$module" -name "*_test.go" -print -quit)"; then
+              test_modules="$test_modules$module\n"
+            fi
+          done
+
+          # Convert to JSON arrays
+          all_modules_json=$(echo "$all_modules" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          test_modules_json=$(echo -e "$test_modules" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+          echo "All modules: $all_modules_json"
+          echo "Test modules: $test_modules_json"
+
+          echo "all-modules=$all_modules_json" >> $GITHUB_OUTPUT
+          echo "test-modules=$test_modules_json" >> $GITHUB_OUTPUT
+
+  test:
+    name: Test (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    needs: find-modules
+    if: ${{ needs.find-modules.outputs.test-modules != '[]' }}
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.find-modules.outputs.test-modules) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+
+      - name: Download dependencies
+        working-directory: ${{ matrix.module }}
+        run: go mod download
+
+      - name: Run tests
+        working-directory: ${{ matrix.module }}
+        run: go test -v ./...
+
+  lint:
+    name: Lint (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    needs: find-modules
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.find-modules.outputs.all-modules) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+
+      - name: Download dependencies
+        working-directory: ${{ matrix.module }}
+        run: go mod download
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+          args: --config=${{ github.workspace }}/.golangci.yml
+          working-directory: ${{ matrix.module }}
+          # デフォルトではcacheは`~/.cache/golangci-lint`に保存される。
+          # モノレポ構成ではrestoreに失敗するためcache無効化
+          skip-cache: true
+          # 緊急で修正する必要があり、lint, test等を完全に通す余力がない場合は以下のコメントアウトを解除
+          # continue-on-error: true
+
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install yamllint
+        run: |
+          sudo apt-get update && sudo apt-get install -y yamllint
+
+      - name: Run yamllint
+        run: |
+          # Find and lint existing YAML files
+          find . \( -name '*.yml' -o -name '*.yaml' \) -print0 | xargs -0 -r yamllint -d "{extends: default, rules: {line-length: disable, truthy: disable}}"

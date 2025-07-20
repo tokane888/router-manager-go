@@ -1,0 +1,46 @@
+---
+pre-commit:
+  commands:
+    dprint-fmt:
+      run: |
+        files=$(echo "{staged_files}" | tr ' ' '\n' | grep -E '(Dockerfile|\.json|\.md)$' || true)
+        if [ -n "$files" ]; then
+          echo "$files" # フォーマット対象のファイル名出力(go fmt等では出力されるが、dprintでは出力されないため)
+          echo "$files" | xargs -r dprint fmt
+        fi
+      stage_fixed: true
+
+    yaml-lint:
+      run: |
+        files=$(echo "{staged_files}" | tr ' ' '\n' | grep -E '\.(yml|yaml)$' || true)
+        if [ -n "$files" ]; then
+          echo "$files" # lint対象のファイル名出力
+          echo "$files" | xargs -I {} yamllint -d "{extends: default, rules: {line-length: disable, truthy: disable}}" {}
+        fi
+
+pre-push:
+  commands:
+    golangci-lint:
+      # モノレポ構造に対応したlint実行
+      run: |
+        # go.modファイルを持つディレクトリを検索
+        modules=$(find ./services ./pkg -name "go.mod" 2>/dev/null | xargs dirname | sort)
+
+        if [ -z "$modules" ]; then
+          echo "go.modファイルが見つかりませんでした。"
+          exit 0
+        fi
+
+        # 各モジュールでgolangci-lintを実行
+        for module in $modules; do
+          echo "Running golangci-lint in $module"
+          (cd "$module" && golangci-lint run ./... --fix)
+        done
+
+        # 修正があった場合は警告を表示
+        if [ -n "$(git diff)" ]; then
+          echo "警告: golangci-lintが問題を検知しました。"
+          echo "修正の上再度pushして下さい。"
+          echo "なお自動で修正可能なものは修正された可能性があるため、必要に応じて修正部分をgit commitの上再度pushして下さい"
+          exit 1
+        fi
