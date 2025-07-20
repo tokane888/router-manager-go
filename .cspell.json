@@ -4,7 +4,9 @@
     ".devcontainer/devcontainer.json",
     ".devcontainer/Dockerfile",
     ".golangci.yml",
-    "lefthook.yml"
+    "lefthook.yml",
+    "go.mod",
+    "go.sum"
   ],
   "words": [
     "adpyke",

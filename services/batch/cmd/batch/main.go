@@ -4,9 +4,8 @@ import (
 	"errors"
 	"log"
 
-	// TODO: import元調整
-	pkglogger "github.com/tokane888/go-repository-template/pkg/logger"
-	"github.com/tokane888/go-repository-template/services/batch/internal/config"
+	pkglogger "github.com/tokane888/router-manager-go/pkg/logger"
+	"github.com/tokane888/router-manager-go/services/batch/internal/config"
 	"go.uber.org/zap"
 )
 

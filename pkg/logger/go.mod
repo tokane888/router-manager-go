@@ -1,5 +1,4 @@
-// TODO: モジュール名調整
-module github.com/tokane888/go-repository-template/pkg/logger
+module github.com/tokane888/router-manager-go/pkg/logger
 
 go 1.24
 

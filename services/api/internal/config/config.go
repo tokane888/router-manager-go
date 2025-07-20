@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/joho/godotenv"
-	"github.com/tokane888/go-repository-template/pkg/logger"
-	"github.com/tokane888/go-repository-template/services/api/internal/router"
+	"github.com/tokane888/router-manager-go/pkg/logger"
+	"github.com/tokane888/router-manager-go/services/api/internal/router"
 )
 
 // Config 環境変数を読み取り、各struct向けのConfigを保持

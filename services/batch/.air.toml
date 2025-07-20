@@ -1,10 +1,10 @@
 root = "."
-tmp_dir = "/tmp/services_batch"
+tmp_dir = "/tmp/route-manager-go-batch"
 
 [build]
-bin = "/tmp/services_batch/main"
-cmd = "go build -o /tmp/services_batch/main ./cmd/batch/" # TODO: build対象の.goのディレクトリを設定
-full_bin = "ENV=local /tmp/services_batch/main"
+bin = "/tmp/route-manager-go-batch/main"
+cmd = "go build -o /tmp/route-manager-go-batch/main ./cmd/batch/"
+full_bin = "ENV=local /tmp/route-manager-go-batch/main"
 delay = 1000
 exclude_dir = ["tmp", "vendor"]
 exclude_regex = ["_test.go"]
