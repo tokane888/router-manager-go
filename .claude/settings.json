@@ -3,7 +3,7 @@
     "allow": [
       "Bash(apt list:*)",
       "Bash(cat:*)",
-      "Bash(dpkg -l:*)",
+      "Bash(dpkg:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(golangci-lint run:*)",
