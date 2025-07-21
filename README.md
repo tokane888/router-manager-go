@@ -1,6 +1,21 @@
 # router-manager-go
 
-- router管理用の各種ツール
+## 各service概要
+
+- api
+  - 下記のようなAPIを提供
+    - dnsmasq設定を編集し、名前解決block対象のドメインを追加
+    - nftによってipをblockする対象のドメインをDBに登録
+- batch
+  - 定期的に実行
+  - DBに登録されたドメインの名前解決を行う
+  - DBにドメインに紐づくipが登録されていない場合
+    - DBにドメインに紐づくipを登録
+    - 当該ipへのpacketのforwardをblock
+  - DBにドメインに紐づくipが登録されていた場合
+    - 名前解決結果と登録されているipを比較
+      - 名前解決結果にのみ含まれるipがあれば、当該ipへのpacketのforwardをblock
+      - DBに登録済みだが名前解決結果に含まれないipがあれば、当該ipへのpacketのforwardのblockを解除
 
 ## 開発環境構築手順
 
