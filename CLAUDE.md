@@ -1,33 +1,62 @@
 # CLAUDE.md
 
-このファイルは、このリポジトリでコードを扱う際のClaude Code (claude.ai/code) への指針を提供します。
+このファイルは、ルーター管理システムのリポジトリでコードを扱う際のClaude Code (claude.ai/code) への指針を提供します。
 
 ## リポジトリ概要
 
-これは共有パッケージを持つマイクロサービス構築用のGoモノレポテンプレートです。[Standard Go Project Layout](https://github.com/golang-standards/project-layout) に従い、開発ツールが事前設定されています。
+このプロジェクトは、dnsmasqとnftablesを使用してドメインブロッキング機能を提供するルーター管理システムです。APIサービスでブロック対象の管理を行い、バッチサービスで定期的にIPアドレスの解決とファイアウォールルールの更新を行います。
 
 ## プロジェクト構成
 
 ```text
 .
-├── services/           # 個別のマイクロサービス
-│   └── api/           # APIサービスの例
-│       ├── cmd/api/   # アプリケーションエントリーポイント (main.go)
-│       └── internal/  # プライベートアプリケーションコード
+├── services/           # マイクロサービス
+│   ├── api/           # APIサービス（ブロック対象管理）
+│   │   ├── cmd/api/   # APIサービスのエントリーポイント
+│   │   └── internal/  # API内部実装
+│   └── batch/         # バッチサービス（定期実行処理）
+│       ├── cmd/batch/ # バッチサービスのエントリーポイント
+│       └── internal/  # バッチ内部実装
 ├── pkg/               # サービス間で共有されるパッケージ
 │   └── logger/        # uber/zapを使用した共有ロギングパッケージ
 ├── .devcontainer/     # VS Code DevContainer設定
 └── .github/           # GitHub Actionsワークフロー
 ```
 
+## サービス概要
+
+### APIサービス
+
+- dnsmasq設定を編集し、名前解決ブロック対象のドメインを追加
+- nftablesによってIPをブロックする対象のドメインをDBに登録
+
+### バッチサービス
+
+- 定期的に実行される処理
+- DBに登録されたドメインの名前解決を実行
+- 解決されたIPアドレスに基づいてnftablesルールを更新
+  - 新規IPの場合：DBに登録し、パケットフォワードをブロック
+  - 既存IPの場合：名前解決結果と比較し、必要に応じてルールを追加/削除
+
 ## 開発コマンド
 
 ### サービスの実行
 
 ```bash
-# サービスディレクトリから実行（例：services/api/）
+# APIサービスの実行
+cd services/api
 go run cmd/api/main.go
+
+# バッチサービスの実行
+cd services/batch
+go run cmd/batch/main.go
 ```
+
+### デバッグ実行
+
+1. Ctrl+Shift+D で "RUN AND DEBUG" メニューを開く
+2. 上部のドロップダウンからデバッグ実行したいサービスを選択
+3. F5 押下でデバッグ実行開始
 
 ### リンティング
 
@@ -76,15 +105,17 @@ lefthook run pre-push
 
 ## アーキテクチャの決定事項
 
-1. **モノレポ構造**: サービスとパッケージを単一リポジトリで管理し、共有コードの管理と一貫したツール使用を容易にしています。
+1. **モノレポ構造**: APIとバッチサービスを単一リポジトリで管理し、共有コードの管理と一貫したツール使用を容易にしています。
 
-2. **内部パッケージ**: 各サービスは `internal/` ディレクトリを使用して、他のサービスがプライベート実装の詳細をインポートすることを防ぎます。
+2. **クリーンアーキテクチャ**: 各サービスはクリーンアーキテクチャの原則に従い、ビジネスロジックを独立させています。
 
-3. **モジュール境界**: 各サービスは独自の `go.mod` ファイルを持ち、開発中はローカルパッケージ用の `replace` ディレクティブを使用します。
+3. **内部パッケージ**: 各サービスは `internal/` ディレクトリを使用して、他のサービスがプライベート実装の詳細をインポートすることを防ぎます。
 
-4. **設定管理**: godotenvを使用して `.env/.env.{ENV}` ファイルから環境固有の設定を読み込みます。
+4. **モジュール境界**: 各サービスは独自の `go.mod` ファイルを持ち、開発中はローカルパッケージ用の `replace` ディレクティブを使用します。
 
-5. **構造化ログ**: すべてのサービスがzapを使用した共有ロガーパッケージを使用し、本番環境で一貫したJSONログを出力します。
+5. **設定管理**: godotenvを使用して `.env/.env.{ENV}` ファイルから環境固有の設定を読み込みます。
+
+6. **構造化ログ**: すべてのサービスがzapを使用した共有ロガーパッケージを使用し、本番環境で一貫したJSONログを出力します。
 
 ## 主要な設定ファイル
 
@@ -93,35 +124,34 @@ lefthook run pre-push
 - `.lefthook.yml`: 自動フォーマットとリンティング用のGitフック設定
 - `.devcontainer/devcontainer.json`: すべてのツールがプリインストールされたVS Code開発環境
 
-## テストのアプローチ
+## システム要件
 
-テンプレートにはテストファイルは含まれていません。テストを追加する際は：
+- Linux環境（dnsmasq、nftablesが必要）
+- Go 1.24以上
+- DBアクセス（詳細は各サービスの設定を参照）
 
-- ユニットテストはコードファイルと同じ場所に配置（例：`config_test.go`）
-- テストヘルパーは `internal/testutil/` を使用
-- サービスディレクトリから `go test ./...` でテストを実行
+## セキュリティ考慮事項
 
-## CI/CDパイプライン
+- nftablesルールの変更には適切な権限が必要
+- dnsmasq設定の変更には管理者権限が必要
+- DBアクセス情報は環境変数で管理
 
-GitHub Actionsワークフローが以下を処理します：
+## 開発環境構築
 
-- すべてのGoモジュールでgolangci-lintを実行
-- dprintでコードフォーマットをチェック
-- サービス間でのマトリックスビルド
-- 自動PRチェック
+1. DevContainerの起動
+2. Git hooksの登録: `lefthook install`
+3. 環境変数の設定（`.env`ファイルの作成）
+4. 必要な権限の確認（nftables、dnsmasq操作権限）
 
-## 開発環境
+## ソース編集時の注意点
 
-DevContainerが提供するもの：
+- 対応するソースが残っている状態で日本語のコメントのみを消去しない
+- *.goの編集が一通り完了した後、一度ビルドが成功することを確認する
+- nftablesやdnsmasqの操作を含むコードは、テスト環境で動作確認を行う
 
-- Go 1.24
-- golangci-lint
-- dprint
-- lefthook
-- Git設定
-- Claude CodeとGitHub Copilotのサポート
+# important-instruction-reminders
 
-## ソース編集時注意点
-
-- 対応するソース残っている状態で日本語のコメントのみを消去しない
-- *.goの編集が一通り完了した後一度build成功することを確認する
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
