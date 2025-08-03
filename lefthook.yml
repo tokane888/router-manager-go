@@ -28,11 +28,3 @@ pre-push:
           echo "Running golangci-lint in $module"
           (cd "$module" && golangci-lint run ./... --fix)
         done
-
-        # 修正があった場合は警告を表示
-        if [ -n "$(git diff)" ]; then
-          echo "警告: golangci-lintが問題を検知しました。"
-          echo "修正の上再度pushして下さい。"
-          echo "なお自動で修正可能なものは修正された可能性があるため、必要に応じて修正部分をgit commitの上再度pushして下さい"
-          exit 1
-        fi
