@@ -163,3 +163,4 @@ NEVER proactively create documentation files (*.md) or README files. Only create
 ## 動作確認
 
 - 編集対象のプロセスのgo.modがあるディレクトリで`golangci-lint run ./...`を実行し、警告が出ないことを確認
+- publicメソッドは非常に単純なものを除いて基本的に単体テスト実装
