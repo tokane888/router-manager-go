@@ -7,26 +7,34 @@ run:
 linters:
   enable:
     #  エラーチェック系
-    - errcheck  # エラーチェックの漏れを検出
-    - errorlint  # エラー処理のベストプラクティス
-    - govet  # コンパイルエラーや疑わしいコードを検出
-    - staticcheck  # 高度な静的解析
+    - errcheck # エラーチェックの漏れを検出
+    - errorlint # エラー処理のベストプラクティス
+    - govet # コンパイルエラーや疑わしいコードを検出
+    - staticcheck # 高度な静的解析
 
     #  コード品質系
-    - gocritic  # コードの改善提案
-    - gosec  # セキュリティチェック
-    - ineffassign  # 無効な代入の検出
-    - noctx  # contextの使用漏れ
-    - rowserrcheck  # データベース操作のエラーチェック
-    - sqlclosecheck  # SQLのクローズ漏れ
+    - gocritic # コードの改善提案
+    - gosec # セキュリティチェック
+    - ineffassign # 無効な代入の検出
+    - noctx # contextの使用漏れ
+    - revive # golint代替
+    - rowserrcheck # データベース操作のエラーチェック
+    - sqlclosecheck # SQLのクローズ漏れ
 
     #  パフォーマンス系
-    - perfsprint  # 文字列連結の最適化
+    - perfsprint # 文字列連結の最適化
   settings:
     govet:
       enable-all: true
       disable:
         - fieldalignment
+    revive:
+      rules:
+        - name: use-any
+          disabled: false
+    gosec:
+      excludes:
+        - G112 # Potential Slowloris Attack (ReadHeaderTimeout)
   exclusions:
     rules:
       #  test fileで一部のlinterを無効化
