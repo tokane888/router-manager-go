@@ -33,18 +33,5 @@
       "Bash(git push origin --delete:*)",
       "Bash(git branch -D:*)"
     ]
-  },
-  "hooks": {
-    "Stop": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "notify-send claude-code waiting..."
-          }
-        ]
-      }
-    ]
   }
 }
