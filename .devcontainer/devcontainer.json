@@ -80,7 +80,19 @@
       }
     }
   },
-  "postStartCommand": "bash ./.devcontainer/postStartCommand.sh"
+  "mounts": [
+    // devcontainer上からgit pull/push可能にするための設定
+    "source=${localEnv:HOME}/.ssh,target=/tmp/.ssh,type=bind,consistency=cached",
+    // github cli設定
+    "source=${localEnv:HOME}/.config/gh,target=/home/vscode/.config/gh,type=bind,consistency=cached",
+
+    "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached"
+  ],
+  "postStartCommand": "bash ./.devcontainer/postStartCommand.sh",
+  "containerEnv": {
+    "TZ": "Asia/Tokyo"
+  }
   // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
   // "remoteUser": "root"
 }

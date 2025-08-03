@@ -6,16 +6,8 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ../..:/workspaces:cached
-      # SSH設定
-      - ${HOME}/.ssh:/tmp/.ssh:ro
-      # GitHub CLI設定
-      - ${HOME}/.config/gh:/home/vscode/.config/gh:ro
-      # Claude設定
-      - ${HOME}/.claude:/home/vscode/.claude:ro
-      - ${HOME}/.claude.json:/home/vscode/.claude.json:ro
+      - ../:/workspaces/router-manager-go:cached
     environment:
-      - TZ=Asia/Tokyo
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USER=postgres
