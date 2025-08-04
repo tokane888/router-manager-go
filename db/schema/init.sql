@@ -22,20 +22,17 @@ CREATE INDEX IF NOT EXISTS idx_domain_ips_domain_name ON domain_ips(domain_name)
 CREATE INDEX IF NOT EXISTS idx_domain_ips_ip_address ON domain_ips(ip_address);
 
 -- Create update trigger for updated_at columns
-CREATE
-OR REPLACE FUNCTION update_updated_at_column() RETURNS TRIGGER AS $ $ BEGIN NEW.updated_at = CURRENT_TIMESTAMP;
-
-RETURN NEW;
-
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
 END;
-
-$ $ language 'plpgsql';
+$$ language 'plpgsql';
 
 -- Apply triggers to automatically update updated_at columns
-CREATE TRIGGER update_domains_updated_at BEFORE
-UPDATE
-    ON domains FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_domains_updated_at BEFORE UPDATE ON domains
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_domain_ips_updated_at BEFORE
-UPDATE
-    ON domain_ips FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_domain_ips_updated_at BEFORE UPDATE ON domain_ips
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
