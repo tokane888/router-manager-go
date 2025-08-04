@@ -38,7 +38,7 @@ linters:
   exclusions:
     rules:
       #  test fileで一部のlinterを無効化
-      - path: _test\.go
+      - path: (_test\.go|test_.*\.go)
         linters:
           - errcheck
           - gosec
