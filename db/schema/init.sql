@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS domain_ips (
     ip_address VARCHAR(45) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_domain_ips_domain_name FOREIGN KEY (domain_name) REFERENCES domains(domain_name) ON DELETE CASCADE
+    CONSTRAINT fk_domain_ips_domain_name FOREIGN KEY (domain_name) REFERENCES domains(domain_name) ON DELETE CASCADE,
+    CONSTRAINT uk_domain_ips_domain_ip UNIQUE (domain_name, ip_address)
 );
 
 -- Create index for better query performance
