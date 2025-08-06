@@ -143,13 +143,6 @@ lefthook run pre-push
 3. 環境変数の設定（`.env`ファイルの作成）
 4. 必要な権限の確認（nftables、dnsmasq操作権限）
 
-# important-instruction-reminders
-
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
-
 ## ソース編集時の注意点
 
 - 対応するソースが残っている状態で日本語のコメントのみを消去しない
