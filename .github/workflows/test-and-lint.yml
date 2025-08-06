@@ -28,11 +28,13 @@ jobs:
 
           # Find modules with test files
           test_modules=""
-          for module in "$all_modules"; do
-            if test -n "$(find "$module" -name "*_test.go" -print -quit)"; then
+          IFS=$'\n'
+          for module in $all_modules; do
+            if [ -n "$module" ] && test -n "$(find "$module" -name "*_test.go" -print -quit)"; then
               test_modules="$test_modules$module\n"
             fi
           done
+          unset IFS
 
           # Convert to JSON arrays
           all_modules_json=$(echo "$all_modules" | jq -R -s -c 'split("\n") | map(select(length > 0))')
