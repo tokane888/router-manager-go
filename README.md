@@ -48,3 +48,8 @@ go run ./cmd/app
 - ctrl+shift+dで"RUN AND DEBUG"メニューを開く
 - 上のメニューからデバッグ実行したいserviceを選択
 - F5押下でデバッグ実行
+
+## local環境向けの各種コマンド例
+
+- 開発用postgresログイン
+  - `docker exec -it router-manager-go_devcontainer-postgres-1 psql -U postgres -d router_manager`
