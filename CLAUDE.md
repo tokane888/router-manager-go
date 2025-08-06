@@ -157,6 +157,7 @@ NEVER proactively create documentation files (*.md) or README files. Only create
 - nftablesやdnsmasqの操作を含むコードは、テスト環境で動作確認を行う
 - ファイルを一通り編集した後、下記のようにgofumptで整形
   - `gofumpt -w .`
+- 環境変数の読み取り、書き込みはconfig.goでのみ行う
 
 ## 動作確認
 
