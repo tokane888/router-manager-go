@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 
@@ -35,7 +36,7 @@ func NewDB(config Config, log *zap.Logger) (*DB, error) {
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 
-	if err := conn.Ping(); err != nil {
+	if err := conn.PingContext(context.Background()); err != nil {
 		log.Error("Failed to ping database", zap.Error(err))
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}

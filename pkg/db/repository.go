@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -11,9 +12,9 @@ import (
 // Domain repository operations
 
 // CreateDomain inserts a new domain into the database
-func (db *DB) CreateDomain(domainName string) error {
+func (db *DB) CreateDomain(ctx context.Context, domainName string) error {
 	query := `INSERT INTO domains (domain_name) VALUES ($1)`
-	_, err := db.conn.Exec(query, domainName)
+	_, err := db.conn.ExecContext(ctx, query, domainName)
 	if err != nil {
 		// Check if it's a PostgreSQL unique constraint violation (error code 23505)
 		var pqErr *pq.Error
@@ -31,10 +32,10 @@ func (db *DB) CreateDomain(domainName string) error {
 }
 
 // GetAllDomains retrieves all domains
-func (db *DB) GetAllDomains() ([]Domain, error) {
+func (db *DB) GetAllDomains(ctx context.Context) ([]Domain, error) {
 	query := `SELECT domain_name, created_at, updated_at FROM domains ORDER BY domain_name`
 
-	rows, err := db.conn.Query(query)
+	rows, err := db.conn.QueryContext(ctx, query)
 	if err != nil {
 		db.log.Error("Failed to get all domains", zap.Error(err))
 		return nil, fmt.Errorf("failed to get all domains: %w", err)
@@ -71,9 +72,9 @@ func (db *DB) GetAllDomains() ([]Domain, error) {
 // Domain IP repository operations
 
 // CreateDomainIP inserts a new IP address for a domain
-func (db *DB) CreateDomainIP(domainName, ipAddress string) error {
+func (db *DB) CreateDomainIP(ctx context.Context, domainName, ipAddress string) error {
 	query := `INSERT INTO domain_ips (domain_name, ip_address) VALUES ($1, $2)`
-	_, err := db.conn.Exec(query, domainName, ipAddress)
+	_, err := db.conn.ExecContext(ctx, query, domainName, ipAddress)
 	if err != nil {
 		// postgresのユニークキー制約(error code 23505)に抵触していないか確認
 		// 抵触している場合domain, ipペアが登録済み
@@ -99,11 +100,11 @@ func (db *DB) CreateDomainIP(domainName, ipAddress string) error {
 }
 
 // GetDomainIPs retrieves all IP addresses for a domain
-func (db *DB) GetDomainIPs(domainName string) ([]DomainIP, error) {
+func (db *DB) GetDomainIPs(ctx context.Context, domainName string) ([]DomainIP, error) {
 	query := `SELECT id, domain_name, ip_address, created_at, updated_at 
 			  FROM domain_ips WHERE domain_name = $1 ORDER BY domain_name`
 
-	rows, err := db.conn.Query(query, domainName)
+	rows, err := db.conn.QueryContext(ctx, query, domainName)
 	if err != nil {
 		db.log.Error("Failed to get domain IPs", zap.String("domain", domainName), zap.Error(err))
 		return nil, fmt.Errorf("failed to get domain IPs for %s: %w", domainName, err)
@@ -140,9 +141,9 @@ func (db *DB) GetDomainIPs(domainName string) ([]DomainIP, error) {
 }
 
 // DeleteDomainIP removes a specific IP address for a domain
-func (db *DB) DeleteDomainIP(domainName, ipAddress string) error {
+func (db *DB) DeleteDomainIP(ctx context.Context, domainName, ipAddress string) error {
 	query := `DELETE FROM domain_ips WHERE domain_name = $1 AND ip_address = $2`
-	result, err := db.conn.Exec(query, domainName, ipAddress)
+	result, err := db.conn.ExecContext(ctx, query, domainName, ipAddress)
 	if err != nil {
 		db.log.Error("Failed to delete domain IP",
 			zap.String("domain", domainName),
@@ -171,11 +172,11 @@ func (db *DB) DeleteDomainIP(domainName, ipAddress string) error {
 }
 
 // GetAllDomainIPs retrieves all domain IP entries
-func (db *DB) GetAllDomainIPs() ([]DomainIP, error) {
+func (db *DB) GetAllDomainIPs(ctx context.Context) ([]DomainIP, error) {
 	query := `SELECT id, domain_name, ip_address, created_at, updated_at 
 			  FROM domain_ips ORDER BY domain_name, created_at DESC`
 
-	rows, err := db.conn.Query(query)
+	rows, err := db.conn.QueryContext(ctx, query)
 	if err != nil {
 		db.log.Error("Failed to get all domain IPs", zap.Error(err))
 		return nil, fmt.Errorf("failed to get all domain IPs: %w", err)

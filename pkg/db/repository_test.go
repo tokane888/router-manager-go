@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -36,7 +37,7 @@ func TestCreateDomain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := testDB.DB.CreateDomain(tt.domainName)
+			err := testDB.DB.CreateDomain(context.Background(), tt.domainName)
 
 			// Check error expectation
 			if tt.expectError {
@@ -51,7 +52,7 @@ func TestCreateDomain(t *testing.T) {
 
 			// Check DB state - verify domain exists if expected
 			if tt.shouldExistInDB {
-				domains, err := testDB.DB.GetAllDomains()
+				domains, err := testDB.DB.GetAllDomains(context.Background())
 				require.NoError(t, err)
 
 				found := false
@@ -72,19 +73,19 @@ func TestGetAllDomains(t *testing.T) {
 	defer testDB.Cleanup(t)
 
 	// Test empty result
-	domains, err := testDB.DB.GetAllDomains()
+	domains, err := testDB.DB.GetAllDomains(context.Background())
 	require.NoError(t, err)
 	assert.Empty(t, domains)
 
 	// Insert test data
 	testDomains := []string{"example.com", "test.com", "google.com"}
 	for _, domain := range testDomains {
-		err = testDB.DB.CreateDomain(domain)
+		err = testDB.DB.CreateDomain(context.Background(), domain)
 		require.NoError(t, err)
 	}
 
 	// Test with data
-	domains, err = testDB.DB.GetAllDomains()
+	domains, err = testDB.DB.GetAllDomains(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, domains, 3)
 
@@ -102,7 +103,7 @@ func TestCreateDomainIP(t *testing.T) {
 
 	// First create a domain
 	domainName := "example.com"
-	err := testDB.DB.CreateDomain(domainName)
+	err := testDB.DB.CreateDomain(context.Background(), domainName)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -135,7 +136,7 @@ func TestCreateDomainIP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := testDB.DB.CreateDomainIP(tt.domainName, tt.ipAddress)
+			err := testDB.DB.CreateDomainIP(context.Background(), tt.domainName, tt.ipAddress)
 			if tt.expectError {
 				assert.Error(t, err)
 				if tt.expectedErrorType != nil {
@@ -155,23 +156,23 @@ func TestGetDomainIPs(t *testing.T) {
 
 	domainName := "example.com"
 	// Create domain
-	err := testDB.DB.CreateDomain(domainName)
+	err := testDB.DB.CreateDomain(context.Background(), domainName)
 	require.NoError(t, err)
 
 	// Test empty result
-	domainIPs, err := testDB.DB.GetDomainIPs(domainName)
+	domainIPs, err := testDB.DB.GetDomainIPs(context.Background(), domainName)
 	require.NoError(t, err)
 	assert.Empty(t, domainIPs)
 
 	// Insert test IPs
 	testIPs := []string{"192.168.1.1", "192.168.1.2", "2001:db8::1"}
 	for _, ip := range testIPs {
-		err = testDB.DB.CreateDomainIP(domainName, ip)
+		err = testDB.DB.CreateDomainIP(context.Background(), domainName, ip)
 		require.NoError(t, err)
 	}
 
 	// Test with data
-	domainIPs, err = testDB.DB.GetDomainIPs(domainName)
+	domainIPs, err = testDB.DB.GetDomainIPs(context.Background(), domainName)
 	require.NoError(t, err)
 	assert.Len(t, domainIPs, 3)
 
@@ -185,7 +186,7 @@ func TestGetDomainIPs(t *testing.T) {
 	}
 
 	// Test non-existent domain
-	domainIPs, err = testDB.DB.GetDomainIPs("nonexistent.com")
+	domainIPs, err = testDB.DB.GetDomainIPs(context.Background(), "nonexistent.com")
 	require.NoError(t, err)
 	assert.Empty(t, domainIPs)
 }
@@ -198,27 +199,27 @@ func TestDeleteDomainIP(t *testing.T) {
 	ipAddress := "192.168.1.1"
 
 	// Create domain and IP
-	err := testDB.DB.CreateDomain(domainName)
+	err := testDB.DB.CreateDomain(context.Background(), domainName)
 	require.NoError(t, err)
-	err = testDB.DB.CreateDomainIP(domainName, ipAddress)
+	err = testDB.DB.CreateDomainIP(context.Background(), domainName, ipAddress)
 	require.NoError(t, err)
 
 	// Verify IP exists
-	domainIPs, err := testDB.DB.GetDomainIPs(domainName)
+	domainIPs, err := testDB.DB.GetDomainIPs(context.Background(), domainName)
 	require.NoError(t, err)
 	assert.Len(t, domainIPs, 1)
 
 	// Delete IP
-	err = testDB.DB.DeleteDomainIP(domainName, ipAddress)
+	err = testDB.DB.DeleteDomainIP(context.Background(), domainName, ipAddress)
 	assert.NoError(t, err)
 
 	// Verify IP is deleted
-	domainIPs, err = testDB.DB.GetDomainIPs(domainName)
+	domainIPs, err = testDB.DB.GetDomainIPs(context.Background(), domainName)
 	require.NoError(t, err)
 	assert.Empty(t, domainIPs)
 
 	// Test deleting non-existent IP
-	err = testDB.DB.DeleteDomainIP(domainName, "192.168.1.2")
+	err = testDB.DB.DeleteDomainIP(context.Background(), domainName, "192.168.1.2")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
@@ -231,27 +232,27 @@ func TestIntegrationWorkflow(t *testing.T) {
 	domainName := "integration-test.com"
 
 	// Step 1: Create domain
-	err := testDB.DB.CreateDomain(domainName)
+	err := testDB.DB.CreateDomain(context.Background(), domainName)
 	require.NoError(t, err)
 
 	// Step 2: Add multiple IPs
 	ips := []string{"192.168.1.10", "192.168.1.11"}
 	for _, ip := range ips {
-		err = testDB.DB.CreateDomainIP(domainName, ip)
+		err = testDB.DB.CreateDomainIP(context.Background(), domainName, ip)
 		require.NoError(t, err)
 	}
 
 	// Step 3: Verify all IPs are stored
-	domainIPs, err := testDB.DB.GetDomainIPs(domainName)
+	domainIPs, err := testDB.DB.GetDomainIPs(context.Background(), domainName)
 	require.NoError(t, err)
 	assert.Len(t, domainIPs, 2)
 
 	// Step 4: Remove one IP
-	err = testDB.DB.DeleteDomainIP(domainName, "192.168.1.10")
+	err = testDB.DB.DeleteDomainIP(context.Background(), domainName, "192.168.1.10")
 	require.NoError(t, err)
 
 	// Step 5: Verify IP count decreased
-	domainIPs, err = testDB.DB.GetDomainIPs(domainName)
+	domainIPs, err = testDB.DB.GetDomainIPs(context.Background(), domainName)
 	require.NoError(t, err)
 	assert.Len(t, domainIPs, 1)
 
@@ -271,27 +272,27 @@ func TestCascadeDelete(t *testing.T) {
 	domainName := "cascade-test.com"
 
 	// Create domain and IPs
-	err := testDB.DB.CreateDomain(domainName)
+	err := testDB.DB.CreateDomain(context.Background(), domainName)
 	require.NoError(t, err)
 
 	ips := []string{"192.168.1.20", "192.168.1.21"}
 	for _, ip := range ips {
-		err = testDB.DB.CreateDomainIP(domainName, ip)
+		err = testDB.DB.CreateDomainIP(context.Background(), domainName, ip)
 		require.NoError(t, err)
 	}
 
 	// Verify IPs exist
-	domainIPs, err := testDB.DB.GetDomainIPs(domainName)
+	domainIPs, err := testDB.DB.GetDomainIPs(context.Background(), domainName)
 	require.NoError(t, err)
 	assert.Len(t, domainIPs, 2)
 
 	// This test would require implementing DeleteDomain method
 	// For now, we'll test that foreign key constraint works by trying to delete domain directly
-	_, err = testDB.DB.conn.Exec("DELETE FROM domains WHERE domain_name = $1", domainName)
+	_, err = testDB.DB.conn.ExecContext(context.Background(), "DELETE FROM domains WHERE domain_name = $1", domainName)
 	require.NoError(t, err) // Should succeed due to CASCADE
 
 	// Verify IPs are also deleted
-	domainIPs, err = testDB.DB.GetDomainIPs(domainName)
+	domainIPs, err = testDB.DB.GetDomainIPs(context.Background(), domainName)
 	require.NoError(t, err)
 	assert.Empty(t, domainIPs)
 }

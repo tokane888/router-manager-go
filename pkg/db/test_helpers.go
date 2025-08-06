@@ -57,7 +57,7 @@ func SetupTestDB(t *testing.T) *TestDBContainer {
 		t.Fatalf("Failed to open database connection: %v", err)
 	}
 
-	if err := conn.Ping(); err != nil {
+	if err := conn.PingContext(context.Background()); err != nil {
 		t.Fatalf("Failed to ping database: %v", err)
 	}
 
@@ -116,7 +116,7 @@ func initializeSchema(db *sql.DB) error {
 	}
 
 	// Execute the schema
-	if _, err := db.Exec(string(schemaSQL)); err != nil {
+	if _, err := db.ExecContext(context.Background(), string(schemaSQL)); err != nil {
 		return fmt.Errorf("failed to execute schema: %w", err)
 	}
 
@@ -128,12 +128,12 @@ func (tdb *TestDBContainer) ClearTables(t *testing.T) {
 	t.Helper()
 
 	// Clear domain_ips first due to foreign key constraint
-	if _, err := tdb.DB.conn.Exec("DELETE FROM domain_ips"); err != nil {
+	if _, err := tdb.DB.conn.ExecContext(context.Background(), "DELETE FROM domain_ips"); err != nil {
 		t.Fatalf("Failed to clear domain_ips table: %v", err)
 	}
 
 	// Clear domains
-	if _, err := tdb.DB.conn.Exec("DELETE FROM domains"); err != nil {
+	if _, err := tdb.DB.conn.ExecContext(context.Background(), "DELETE FROM domains"); err != nil {
 		t.Fatalf("Failed to clear domains table: %v", err)
 	}
 }
