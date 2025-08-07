@@ -2,13 +2,13 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -51,21 +51,21 @@ func SetupTestDB(t *testing.T) *TestDBContainer {
 	// ログ出力しないlogger。test用
 	logger := zap.NewNop()
 
-	// Use the connection string directly to create a sql.DB connection
-	conn, err := sql.Open("postgres", connStr)
+	// Create connection pool using pgx
+	pool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
-		t.Fatalf("Failed to open database connection: %v", err)
+		t.Fatalf("Failed to create connection pool: %v", err)
 	}
 
-	if err := conn.PingContext(context.Background()); err != nil {
+	if err := pool.Ping(ctx); err != nil {
 		t.Fatalf("Failed to ping database: %v", err)
 	}
 
 	// Create DB wrapper
-	db := &DB{conn: conn, log: logger}
+	db := &DB{pool: pool, log: logger}
 
 	// Initialize schema
-	if err := initializeSchema(db.conn); err != nil {
+	if err := initializeSchema(db.pool); err != nil {
 		t.Fatalf("Failed to initialize schema: %v", err)
 	}
 
@@ -80,9 +80,7 @@ func (tdb *TestDBContainer) Cleanup(t *testing.T) {
 	t.Helper()
 
 	if tdb.DB != nil {
-		if err := tdb.DB.Close(); err != nil {
-			t.Errorf("Failed to close DB connection: %v", err)
-		}
+		tdb.DB.Close()
 	}
 
 	if tdb.container != nil {
@@ -94,7 +92,7 @@ func (tdb *TestDBContainer) Cleanup(t *testing.T) {
 }
 
 // initializeSchema reads and executes the schema SQL file
-func initializeSchema(db *sql.DB) error {
+func initializeSchema(pool *pgxpool.Pool) error {
 	// Get the path to the schema file
 	schemaPath := filepath.Join("..", "..", "db", "schema", "init.sql")
 
@@ -116,7 +114,7 @@ func initializeSchema(db *sql.DB) error {
 	}
 
 	// Execute the schema
-	if _, err := db.ExecContext(context.Background(), string(schemaSQL)); err != nil {
+	if _, err := pool.Exec(context.Background(), string(schemaSQL)); err != nil {
 		return fmt.Errorf("failed to execute schema: %w", err)
 	}
 
@@ -128,12 +126,12 @@ func (tdb *TestDBContainer) ClearTables(t *testing.T) {
 	t.Helper()
 
 	// Clear domain_ips first due to foreign key constraint
-	if _, err := tdb.DB.conn.ExecContext(context.Background(), "DELETE FROM domain_ips"); err != nil {
+	if _, err := tdb.DB.pool.Exec(context.Background(), "DELETE FROM domain_ips"); err != nil {
 		t.Fatalf("Failed to clear domain_ips table: %v", err)
 	}
 
 	// Clear domains
-	if _, err := tdb.DB.conn.ExecContext(context.Background(), "DELETE FROM domains"); err != nil {
+	if _, err := tdb.DB.pool.Exec(context.Background(), "DELETE FROM domains"); err != nil {
 		t.Fatalf("Failed to clear domains table: %v", err)
 	}
 }

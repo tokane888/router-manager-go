@@ -288,7 +288,7 @@ func TestCascadeDelete(t *testing.T) {
 
 	// This test would require implementing DeleteDomain method
 	// For now, we'll test that foreign key constraint works by trying to delete domain directly
-	_, err = testDB.DB.conn.ExecContext(context.Background(), "DELETE FROM domains WHERE domain_name = $1", domainName)
+	_, err = testDB.DB.pool.Exec(context.Background(), "DELETE FROM domains WHERE domain_name = $1", domainName)
 	require.NoError(t, err) // Should succeed due to CASCADE
 
 	// Verify IPs are also deleted

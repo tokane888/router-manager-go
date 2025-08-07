@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/zap"
 )
 
@@ -14,11 +14,11 @@ import (
 // CreateDomain inserts a new domain into the database
 func (db *DB) CreateDomain(ctx context.Context, domainName string) error {
 	query := `INSERT INTO domains (domain_name) VALUES ($1)`
-	_, err := db.conn.ExecContext(ctx, query, domainName)
+	_, err := db.pool.Exec(ctx, query, domainName)
 	if err != nil {
 		// Check if it's a PostgreSQL unique constraint violation (error code 23505)
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			db.log.Warn("Domain already exists", zap.String("domain", domainName))
 			return fmt.Errorf("failed to create domain %s: %w", domainName, ErrDomainAlreadyExists)
 		}
@@ -35,16 +35,12 @@ func (db *DB) CreateDomain(ctx context.Context, domainName string) error {
 func (db *DB) GetAllDomains(ctx context.Context) ([]Domain, error) {
 	query := `SELECT domain_name, created_at, updated_at FROM domains ORDER BY domain_name`
 
-	rows, err := db.conn.QueryContext(ctx, query)
+	rows, err := db.pool.Query(ctx, query)
 	if err != nil {
 		db.log.Error("Failed to get all domains", zap.Error(err))
 		return nil, fmt.Errorf("failed to get all domains: %w", err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			db.log.Error("Failed to close rows", zap.Error(err))
-		}
-	}()
+	defer rows.Close()
 
 	var domains []Domain
 	for rows.Next() {
@@ -74,12 +70,12 @@ func (db *DB) GetAllDomains(ctx context.Context) ([]Domain, error) {
 // CreateDomainIP inserts a new IP address for a domain
 func (db *DB) CreateDomainIP(ctx context.Context, domainName, ipAddress string) error {
 	query := `INSERT INTO domain_ips (domain_name, ip_address) VALUES ($1, $2)`
-	_, err := db.conn.ExecContext(ctx, query, domainName, ipAddress)
+	_, err := db.pool.Exec(ctx, query, domainName, ipAddress)
 	if err != nil {
 		// postgresのユニークキー制約(error code 23505)に抵触していないか確認
 		// 抵触している場合domain, ipペアが登録済み
-		var pqErr *pq.Error
-		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			db.log.Warn("Domain IP already exists",
 				zap.String("domain", domainName),
 				zap.String("ip", ipAddress))
@@ -104,16 +100,12 @@ func (db *DB) GetDomainIPs(ctx context.Context, domainName string) ([]DomainIP, 
 	query := `SELECT id, domain_name, ip_address, created_at, updated_at 
 			  FROM domain_ips WHERE domain_name = $1 ORDER BY domain_name`
 
-	rows, err := db.conn.QueryContext(ctx, query, domainName)
+	rows, err := db.pool.Query(ctx, query, domainName)
 	if err != nil {
 		db.log.Error("Failed to get domain IPs", zap.String("domain", domainName), zap.Error(err))
 		return nil, fmt.Errorf("failed to get domain IPs for %s: %w", domainName, err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			db.log.Error("Failed to close rows", zap.Error(err))
-		}
-	}()
+	defer rows.Close()
 
 	var domainIPs []DomainIP
 	for rows.Next() {
@@ -143,7 +135,7 @@ func (db *DB) GetDomainIPs(ctx context.Context, domainName string) ([]DomainIP, 
 // DeleteDomainIP removes a specific IP address for a domain
 func (db *DB) DeleteDomainIP(ctx context.Context, domainName, ipAddress string) error {
 	query := `DELETE FROM domain_ips WHERE domain_name = $1 AND ip_address = $2`
-	result, err := db.conn.ExecContext(ctx, query, domainName, ipAddress)
+	result, err := db.pool.Exec(ctx, query, domainName, ipAddress)
 	if err != nil {
 		db.log.Error("Failed to delete domain IP",
 			zap.String("domain", domainName),
@@ -152,15 +144,7 @@ func (db *DB) DeleteDomainIP(ctx context.Context, domainName, ipAddress string) 
 		return fmt.Errorf("failed to delete domain IP %s for %s: %w", ipAddress, domainName, err)
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		db.log.Error("Failed to get rows affected",
-			zap.String("domain", domainName),
-			zap.String("ip", ipAddress),
-			zap.Error(err))
-		return fmt.Errorf("failed to get rows affected for domain IP %s: %w", ipAddress, err)
-	}
-
+	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
 		return fmt.Errorf("domain IP %s for %s not found", ipAddress, domainName)
 	}
@@ -176,16 +160,12 @@ func (db *DB) GetAllDomainIPs(ctx context.Context) ([]DomainIP, error) {
 	query := `SELECT id, domain_name, ip_address, created_at, updated_at 
 			  FROM domain_ips ORDER BY domain_name, created_at DESC`
 
-	rows, err := db.conn.QueryContext(ctx, query)
+	rows, err := db.pool.Query(ctx, query)
 	if err != nil {
 		db.log.Error("Failed to get all domain IPs", zap.Error(err))
 		return nil, fmt.Errorf("failed to get all domain IPs: %w", err)
 	}
-	defer func() {
-		if err := rows.Close(); err != nil {
-			db.log.Error("Failed to close rows", zap.Error(err))
-		}
-	}()
+	defer rows.Close()
 
 	var domainIPs []DomainIP
 	for rows.Next() {

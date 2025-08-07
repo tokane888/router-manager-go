@@ -2,11 +2,10 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
-	_ "github.com/lib/pq"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
@@ -21,7 +20,7 @@ const (
 
 // DB represents a database connection
 type DB struct {
-	conn *sql.DB
+	pool *pgxpool.Pool
 	log  *zap.Logger
 }
 
@@ -52,18 +51,12 @@ func NewDefaultConfig() Config {
 	}
 }
 
-// NewDB creates a new database connection
+// NewDB creates a new database connection pool using pgx
 func NewDB(config Config, log *zap.Logger) (*DB, error) {
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		config.Host, config.Port, config.User, config.Password, config.DBName, config.SSLMode)
+	// Build PostgreSQL connection string for pgx
+	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		config.User, config.Password, config.Host, config.Port, config.DBName, config.SSLMode)
 
-	conn, err := sql.Open("postgres", dsn)
-	if err != nil {
-		log.Error("Failed to open database connection", zap.Error(err))
-		return nil, fmt.Errorf("failed to open database connection: %w", err)
-	}
-
-	// Configure connection pool
 	// Set default values if not specified
 	if config.MaxOpenConns == 0 {
 		config.MaxOpenConns = DefaultMaxOpenConns
@@ -78,30 +71,44 @@ func NewDB(config Config, log *zap.Logger) (*DB, error) {
 		config.MaxIdleTime = DefaultMaxIdleTime
 	}
 
-	conn.SetMaxOpenConns(config.MaxOpenConns)
-	conn.SetMaxIdleConns(config.MaxIdleConns)
-	conn.SetConnMaxLifetime(config.MaxLifetime)
-	conn.SetConnMaxIdleTime(config.MaxIdleTime)
+	// Configure pgxpool
+	poolConfig, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		log.Error("Failed to parse database config", zap.Error(err))
+		return nil, fmt.Errorf("failed to parse database config: %w", err)
+	}
 
-	log.Info("Connection pool configured",
-		zap.Int("maxOpenConns", config.MaxOpenConns),
-		zap.Int("maxIdleConns", config.MaxIdleConns),
-		zap.Duration("maxLifetime", config.MaxLifetime),
-		zap.Duration("maxIdleTime", config.MaxIdleTime))
+	// Set connection pool parameters
+	poolConfig.MaxConns = int32(config.MaxOpenConns)
+	poolConfig.MinConns = int32(config.MaxIdleConns)
+	poolConfig.MaxConnLifetime = config.MaxLifetime
+	poolConfig.MaxConnIdleTime = config.MaxIdleTime
 
-	if err := conn.PingContext(context.Background()); err != nil {
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
+	if err != nil {
+		log.Error("Failed to create connection pool", zap.Error(err))
+		return nil, fmt.Errorf("failed to create connection pool: %w", err)
+	}
+
+	// Test connection
+	if err := pool.Ping(context.Background()); err != nil {
 		log.Error("Failed to ping database", zap.Error(err))
+		pool.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	log.Info("Database connection established")
-	return &DB{conn: conn, log: log}, nil
+	log.Info("Database connection pool established",
+		zap.Int("maxConns", config.MaxOpenConns),
+		zap.Int("minConns", config.MaxIdleConns),
+		zap.Duration("maxLifetime", config.MaxLifetime),
+		zap.Duration("maxIdleTime", config.MaxIdleTime))
+
+	return &DB{pool: pool, log: log}, nil
 }
 
-// Close closes the database connection
-func (db *DB) Close() error {
-	if db.conn != nil {
-		return db.conn.Close()
+// Close closes the database connection pool
+func (db *DB) Close() {
+	if db.pool != nil {
+		db.pool.Close()
 	}
-	return nil
 }
