@@ -11,11 +11,11 @@ import (
 
 // Default values for database connection pool configuration
 const (
-	DefaultMaxOpenConns = 25              // 25% of PostgreSQL default max_connections (100)
-	DefaultMaxIdleConns = 5               // Reasonable number of idle connections
-	DefaultMaxLifetime  = 5 * time.Minute // Connection lifetime
-	DefaultMaxIdleTime  = 1 * time.Minute // Idle connection timeout
-	DefaultSSLMode      = "disable"       // For local development; use "require" for production
+	DefaultMaxOpenConns int32 = 25              // 25% of PostgreSQL default max_connections (100)
+	DefaultMaxIdleConns int32 = 5               // Reasonable number of idle connections
+	DefaultMaxLifetime        = 5 * time.Minute // Connection lifetime
+	DefaultMaxIdleTime        = 1 * time.Minute // Idle connection timeout
+	DefaultSSLMode            = "disable"       // For local development; use "require" for production
 )
 
 // DB represents a database connection
@@ -34,8 +34,8 @@ type Config struct {
 	SSLMode  string
 
 	// Connection pool settings
-	MaxOpenConns int           // Maximum number of open connections
-	MaxIdleConns int           // Maximum number of idle connections
+	MaxOpenConns int32         // Maximum number of open connections
+	MaxIdleConns int32         // Maximum number of idle connections
 	MaxLifetime  time.Duration // Maximum amount of time a connection may be reused
 	MaxIdleTime  time.Duration // Maximum amount of time a connection may be idle
 }
@@ -79,8 +79,8 @@ func NewDB(config Config, log *zap.Logger) (*DB, error) {
 	}
 
 	// Set connection pool parameters
-	poolConfig.MaxConns = int32(config.MaxOpenConns)
-	poolConfig.MinConns = int32(config.MaxIdleConns)
+	poolConfig.MaxConns = config.MaxOpenConns
+	poolConfig.MinConns = config.MaxIdleConns
 	poolConfig.MaxConnLifetime = config.MaxLifetime
 	poolConfig.MaxConnIdleTime = config.MaxIdleTime
 
@@ -98,8 +98,8 @@ func NewDB(config Config, log *zap.Logger) (*DB, error) {
 	}
 
 	log.Info("Database connection pool established",
-		zap.Int("maxConns", config.MaxOpenConns),
-		zap.Int("minConns", config.MaxIdleConns),
+		zap.Int32("maxConns", config.MaxOpenConns),
+		zap.Int32("minConns", config.MaxIdleConns),
 		zap.Duration("maxLifetime", config.MaxLifetime),
 		zap.Duration("maxIdleTime", config.MaxIdleTime))
 
