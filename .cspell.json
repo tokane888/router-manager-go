@@ -31,6 +31,7 @@
     "mohsen1",
     "multierr",
     "nolint",
+    "ollama",
     "pgconn",
     "pgxpool",
     "pkglogger",
