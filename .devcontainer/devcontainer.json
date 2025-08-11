@@ -91,13 +91,12 @@
   ],
   "postCreateCommand": "bash ./.devcontainer/postCreateCommand.sh",
   "postStartCommand": "bash ./.devcontainer/postStartCommand.sh",
-  "containerEnv": {
-    "TZ": "Asia/Tokyo"
-  },
-  // TODO: AIを使用しない場合は削除
   "remoteEnv": {
     "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
     "OLLAMA_BASE_URL": "${localEnv:OLLAMA_BASE_URL}"
+  },
+  "containerEnv": {
+    "TZ": "Asia/Tokyo"
   }
   // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
   // "remoteUser": "root"
