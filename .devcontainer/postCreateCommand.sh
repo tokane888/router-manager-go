@@ -25,3 +25,11 @@ if ! claude mcp list 2>/dev/null | grep -q "cipher"; then
 else
     echo "MCP server cipher already exists, skipping..."
 fi
+
+# serenaが存在しない場合のみ追加
+if ! claude mcp list 2>/dev/null | grep -q "serena"; then
+    echo "Adding MCP server serena..."
+    claude mcp add serena -- uvx --from git+https://github.com/oraios/serena serena start-mcp-server --context ide-assistant --project $(pwd)
+else
+    echo "MCP server serena already exists, skipping..."
+fi
