@@ -42,8 +42,6 @@ export ANTHROPIC_API_KEY="sk-ant-xxx..."
 - devcontainer起動
 - 下記実行でcommit前git hook登録
   - `lefthook install`
-- `claude`実行後に下記でserena初期化
-  - `/mcp__serena__initial_instructions`
 
 ## 設計方針
 
