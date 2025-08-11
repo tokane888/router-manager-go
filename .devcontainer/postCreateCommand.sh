@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # mcp install
-# TODO: claude codeを使用しない場合削除
 
 # context7が存在しない場合のみ追加
 if ! claude mcp list 2>/dev/null | grep -q "context7"; then
