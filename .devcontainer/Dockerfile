@@ -3,10 +3,10 @@ FROM mcr.microsoft.com/devcontainers/go:1-1.24-bookworm
 # install air
 RUN curl -sSfL https://raw.githubusercontent.com/cosmtrek/air/master/install.sh | sh -s -- -b /usr/local/bin
 
-# install nodejs, npm, yamllint, and notification tools
+# install nodejs, npm
 RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get update \
-    && apt-get install -y nodejs yamllint libnotify-bin
+    && apt-get install -y nodejs
 
 # install npm packages
 RUN npm install -g dprint
