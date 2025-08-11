@@ -1,10 +1,10 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/go
 {
-  "name": "Go",
-  "build": {
-    "dockerfile": "Dockerfile"
-  },
+  "name": "Go with PostgreSQL",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/router-manager-go",
   "features": {
     "ghcr.io/anthropics/devcontainer-features/claude-code:latest": {},
 
@@ -89,8 +89,12 @@
     "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind,consistency=cached"
   ],
+  "postCreateCommand": "bash ./.devcontainer/postCreateCommand.sh",
   "postStartCommand": "bash ./.devcontainer/postStartCommand.sh",
-
+  "remoteEnv": {
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "OLLAMA_BASE_URL": "${localEnv:OLLAMA_BASE_URL}"
+  },
   "containerEnv": {
     "TZ": "Asia/Tokyo"
   }

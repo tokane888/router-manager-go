@@ -22,6 +22,23 @@
 
 ## 開発環境構築手順
 
+### 必要な環境変数（ローカル環境）
+
+MCPサーバー（cipher）を使用する場合、以下の環境変数をホスト側で設定してください：
+
+- `ANTHROPIC_API_KEY`: Anthropic Claude API キー
+- `OLLAMA_BASE_URL`: Ollama ローカルLLM URL
+
+例（~/.zshrc または ~/.bashrc）：
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-xxx..."
+```
+
+※未設定の場合、cipher MCPサーバーは接続に失敗しますが、その他の開発作業には影響しません。
+
+### 手順
+
 - devcontainer起動
 - 下記実行でcommit前git hook登録
   - `lefthook install`
@@ -48,3 +65,8 @@ go run ./cmd/app
 - ctrl+shift+dで"RUN AND DEBUG"メニューを開く
 - 上のメニューからデバッグ実行したいserviceを選択
 - F5押下でデバッグ実行
+
+## local環境向けの各種コマンド例
+
+- 開発用postgresログイン
+  - `docker exec -it router-manager-go_devcontainer-postgres-1 psql -U postgres -d router_manager`

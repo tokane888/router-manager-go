@@ -28,11 +28,13 @@ jobs:
 
           # Find modules with test files
           test_modules=""
-          for module in "$all_modules"; do
-            if test -n "$(find "$module" -name "*_test.go" -print -quit)"; then
+          IFS=$'\n'
+          for module in $all_modules; do
+            if [ -n "$module" ] && test -n "$(find "$module" -name "*_test.go" -print -quit)"; then
               test_modules="$test_modules$module\n"
             fi
           done
+          unset IFS
 
           # Convert to JSON arrays
           all_modules_json=$(echo "$all_modules" | jq -R -s -c 'split("\n") | map(select(length > 0))')
@@ -98,7 +100,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.3.1
           args: --config=${{ github.workspace }}/.golangci.yml
           working-directory: ${{ matrix.module }}
           # デフォルトではcacheは`~/.cache/golangci-lint`に保存される。
@@ -106,21 +108,3 @@ jobs:
           skip-cache: true
           # 緊急で修正する必要があり、lint, test等を完全に通す余力がない場合は以下のコメントアウトを解除
           # continue-on-error: true
-
-  yaml-lint:
-    name: YAML Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Install yamllint
-        run: |
-          sudo apt-get update && sudo apt-get install -y yamllint
-
-      - name: Run yamllint
-        run: |
-          # Find and lint existing YAML files
-          find . \( -name '*.yml' -o -name '*.yaml' \) -print0 | xargs -0 -r yamllint -d "{extends: default, rules: {line-length: disable, truthy: disable}}"

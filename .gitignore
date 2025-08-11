@@ -1,2 +1,5 @@
 .tag
 .claude/settings.local.json
+
+# Cipher MCP server data files
+data/

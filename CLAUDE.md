@@ -148,17 +148,8 @@ lefthook run pre-push
 - 対応するソースが残っている状態で日本語のコメントのみを消去しない
 - *.goの編集が一通り完了した後、一度ビルドが成功することを確認する
 - nftablesやdnsmasqの操作を含むコードは、テスト環境で動作確認を行う
-
-# important-instruction-reminders
-
-Do what has been asked; nothing more, nothing less.
-NEVER create files unless they're absolutely necessary for achieving your goal.
-ALWAYS prefer editing an existing file to creating a new one.
-NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
-
-## ソース編集時注意点
-
-- 対応するソース残っている状態で日本語のコメントのみを消去しない
+- ファイルを一通り編集した後、下記のようにgofumptで整形
+  - `gofumpt -w .`
 
 ## 動作確認
 
