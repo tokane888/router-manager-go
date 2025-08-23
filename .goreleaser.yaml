@@ -1,0 +1,113 @@
+# GoReleaser configuration for monorepo with unified versioning
+# Documentation: https://goreleaser.com
+
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+# vim: set ts=2 sw=2 tw=0 fo=cnqoj
+
+version: 2
+
+project_name: go-repository-template
+
+before:
+  hooks:
+    # Ensure all modules in services directory are up to date
+    - find services -name go.mod -exec dirname {} \; | xargs -I {} sh -c 'cd {} && go mod tidy'
+
+builds:
+  # API Service build configuration
+  - id: api
+    dir: services/api
+    main: ./cmd/api
+    binary: api
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.ShortCommit}}
+      - -X main.date={{.Date}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+  # Batch Service build configuration
+  - id: batch
+    dir: services/batch
+    main: ./cmd/batch
+    binary: batch
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  # API Service archive
+  - id: api-archive
+    ids:
+      - api
+    name_template: >-
+      api_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - none* # Only include the binary
+
+  # Batch Service archive
+  - id: batch-archive
+    ids:
+      - batch
+    name_template: >-
+      batch_
+      {{- .Version }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    files:
+      - none* # Only include the binary
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  sort: desc # 新しい順にコミットを一覧表示
+  use: github
+  filters:
+    exclude:
+      # "docs:", "test:"から始まるコミットは処理と無関係なのでrelease noteから除外
+      - "^docs:"
+      - "^test:"
+      - "Merge pull request"
+      - "Merge branch"
+
+release:
+  github:
+    owner: tokane888
+    name: router-manager-go
+  prerelease: auto
+  mode: append
+  header: |
+    ## {{.ProjectName}} {{.Tag}} ({{.Date}})
+
+    Unified release for all services in the monorepo.
+
+  footer: |
+    ---
+
+    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).

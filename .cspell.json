@@ -21,6 +21,7 @@
     "gofumpt",
     "golangci",
     "gomod",
+    "goreleaser",
     "infow",
     "interactor",
     "isready",

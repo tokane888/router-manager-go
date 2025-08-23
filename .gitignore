@@ -3,3 +3,5 @@
 
 # Cipher MCP server data files
 data/
+# Added by goreleaser init:
+dist/
