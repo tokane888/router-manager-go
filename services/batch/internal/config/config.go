@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -42,14 +43,15 @@ type ProcessingConfig struct {
 	DomainTimeout  time.Duration
 }
 
-// LoadConfig loads environment variables into Config
+// LoadConfig loads configuration from environment variables and defaults
+// Priority: environment variables > defaults
 func LoadConfig(version string) (*Config, error) {
+	// Determine environment from environment variable
 	env := getEnv("ENV", "local")
+
+	// Load environment file (optional)
 	envFile := ".env/.env." + env
-	err := godotenv.Load(envFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load %s: %w", envFile, err)
-	}
+	_ = godotenv.Load(envFile) // Ignore error if file doesn't exist
 
 	maxConcurrency, err := getIntEnv("MAX_CONCURRENCY", 10)
 	if err != nil {
@@ -86,13 +88,17 @@ func LoadConfig(version string) (*Config, error) {
 		return nil, err
 	}
 
+	// Load configuration from environment variables
+	logLevel := getEnv("LOG_LEVEL", "info")
+	logFormat := getEnv("LOG_FORMAT", "local")
+
 	cfg := &Config{
 		Env: env,
 		Logger: logger.LoggerConfig{
 			AppName:    getEnv("APP_NAME", ""),
 			AppVersion: version,
-			Level:      getEnv("LOG_LEVEL", "info"),
-			Format:     getEnv("LOG_FORMAT", "local"),
+			Level:      logLevel,
+			Format:     logFormat,
 		},
 		DNS: DNSConfig{
 			Timeout:           dnsTimeout,
@@ -111,6 +117,12 @@ func LoadConfig(version string) (*Config, error) {
 		},
 		// TODO: Database config will be implemented in subsequent tasks
 	}
+
+	// Validate configuration
+	if err := validateConfig(cfg); err != nil {
+		return nil, fmt.Errorf("configuration validation failed: %w", err)
+	}
+
 	return cfg, nil
 }
 
@@ -152,4 +164,62 @@ func getDurationEnv(key string, fallback time.Duration) (time.Duration, error) {
 		return d, nil
 	}
 	return fallback, nil
+}
+
+// validateConfig validates the configuration values
+func validateConfig(cfg *Config) error {
+	// Validate environment
+	if cfg.Env != "local" && cfg.Env != "prod" {
+		return fmt.Errorf("invalid environment: %s (must be 'local' or 'prod')", cfg.Env)
+	}
+
+	// Validate log level
+	validLogLevels := map[string]bool{
+		"debug": true, "info": true, "warn": true, "error": true,
+	}
+	if !validLogLevels[cfg.Logger.Level] {
+		return fmt.Errorf("invalid log level: %s (must be debug, info, warn, or error)", cfg.Logger.Level)
+	}
+
+	// Validate log format
+	if cfg.Logger.Format != "local" && cfg.Logger.Format != "cloud" {
+		return fmt.Errorf("invalid log format: %s (must be 'local' or 'cloud')", cfg.Logger.Format)
+	}
+
+	// Validate processing configuration
+	if cfg.Processing.MaxConcurrency <= 0 {
+		return fmt.Errorf("max concurrency must be positive, got: %d", cfg.Processing.MaxConcurrency)
+	}
+	if cfg.Processing.MaxConcurrency > 100 {
+		return fmt.Errorf("max concurrency too high: %d (maximum: 100)", cfg.Processing.MaxConcurrency)
+	}
+
+	// Validate DNS configuration
+	if cfg.DNS.Timeout <= 0 {
+		return fmt.Errorf("DNS timeout must be positive, got: %v", cfg.DNS.Timeout)
+	}
+	if cfg.DNS.RetryAttempts < 0 {
+		return fmt.Errorf("DNS retry attempts cannot be negative, got: %d", cfg.DNS.RetryAttempts)
+	}
+	if cfg.DNS.RetryAttempts > 10 {
+		return fmt.Errorf("DNS retry attempts too high: %d (maximum: 10)", cfg.DNS.RetryAttempts)
+	}
+
+	// Validate firewall configuration
+	if cfg.Firewall.CommandTimeout <= 0 {
+		return fmt.Errorf("firewall command timeout must be positive, got: %v", cfg.Firewall.CommandTimeout)
+	}
+	if cfg.Firewall.Table == "" {
+		return errors.New("firewall table cannot be empty")
+	}
+	if cfg.Firewall.Chain == "" {
+		return errors.New("firewall chain cannot be empty")
+	}
+
+	// Validate domain timeout
+	if cfg.Processing.DomainTimeout <= 0 {
+		return fmt.Errorf("domain timeout must be positive, got: %v", cfg.Processing.DomainTimeout)
+	}
+
+	return nil
 }
