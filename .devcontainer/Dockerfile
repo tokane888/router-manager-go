@@ -22,3 +22,4 @@ RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/ins
 USER vscode
 RUN go install mvdan.cc/gofumpt@latest
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN go install go.uber.org/mock/mockgen@latest
