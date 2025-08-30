@@ -4,6 +4,7 @@ go 1.24
 
 require (
 	github.com/joho/godotenv v1.5.1
+	github.com/stretchr/testify v1.10.0
 	github.com/tokane888/router-manager-go/pkg/db v0.0.0
 	github.com/tokane888/router-manager-go/pkg/logger v0.0.0
 	go.uber.org/zap v1.27.0
@@ -53,7 +54,6 @@ require (
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
 	github.com/shirou/gopsutil/v4 v4.25.5 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/testcontainers/testcontainers-go v0.38.0 // indirect
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.38.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
