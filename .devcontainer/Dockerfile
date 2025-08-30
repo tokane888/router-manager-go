@@ -9,6 +9,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_lts.x | bash - \
     && apt-get install -y nodejs
 
 # install npm packages
+RUN npm install -g cc-sdd@latest
 RUN npm install -g dprint
 RUN npm install -g lefthook
 RUN npm install -g @byterover/cipher
