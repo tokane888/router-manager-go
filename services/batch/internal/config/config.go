@@ -24,9 +24,8 @@ type Config struct {
 
 // DNSConfig contains DNS resolution configuration
 type DNSConfig struct {
-	Timeout           time.Duration
-	RetryAttempts     int
-	DiscoveryWaitTime time.Duration
+	Timeout       time.Duration
+	RetryAttempts int
 }
 
 // FirewallConfig contains firewall management configuration
@@ -68,11 +67,6 @@ func LoadConfig(version string) (*Config, error) {
 		return nil, err
 	}
 
-	discoveryWaitTime, err := getDurationEnv("DNS_DISCOVERY_WAIT_TIME", 100*time.Millisecond)
-	if err != nil {
-		return nil, err
-	}
-
 	firewallDryRun, err := getBoolEnv("FIREWALL_DRY_RUN", true)
 	if err != nil {
 		return nil, err
@@ -101,9 +95,8 @@ func LoadConfig(version string) (*Config, error) {
 			Format:     logFormat,
 		},
 		DNS: DNSConfig{
-			Timeout:           dnsTimeout,
-			RetryAttempts:     dnsRetryAttempts,
-			DiscoveryWaitTime: discoveryWaitTime,
+			Timeout:       dnsTimeout,
+			RetryAttempts: dnsRetryAttempts,
 		},
 		Firewall: FirewallConfig{
 			DryRun:         firewallDryRun,
