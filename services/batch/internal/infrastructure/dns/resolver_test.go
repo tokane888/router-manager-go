@@ -109,7 +109,7 @@ func TestResolveIPs(t *testing.T) {
 				tt.mockBehavior(mockRes)
 			}
 
-			cfg := &DNSConfig{
+			cfg := DNSConfig{
 				Timeout:       tt.timeout,
 				RetryAttempts: tt.retryAttempts,
 			}

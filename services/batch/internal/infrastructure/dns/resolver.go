@@ -33,7 +33,7 @@ type DNSConfig struct {
 	RetryAttempts int
 }
 
-func NewDNSResolver(cfg *DNSConfig, resolver NetResolver, logger *zap.Logger) repository.DNSResolver {
+func NewDNSResolver(cfg DNSConfig, resolver NetResolver, logger *zap.Logger) repository.DNSResolver {
 	return &dnsResolverImpl{
 		resolver:      resolver,
 		logger:        logger,

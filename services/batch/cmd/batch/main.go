@@ -43,7 +43,7 @@ func main() {
 	defer database.Close()
 
 	// Initialize DNS resolver
-	dnsResolver := dns.NewDNSResolver(&cfg.DNS, net.DefaultResolver, logger)
+	dnsResolver := dns.NewDNSResolver(cfg.DNS, net.DefaultResolver, logger)
 
 	// Initialize firewall manager
 	firewallManager := firewall.NewNFTablesManager(cfg.Firewall, logger)
