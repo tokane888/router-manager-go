@@ -85,18 +85,25 @@ func (uc *DomainBlockerUseCase) processDomain(ctx context.Context, domain string
 func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain string) ([]string, error) {
 	uc.logger.Info("Discovering IPs for domain", zap.String("domain", domain))
 
-	// TODO: Implement actual DNS resolution using uc.dnsResolver
-	// For now, return dummy IPs to demonstrate the flow
-	dummyIPs := []string{
-		"192.168.1.100", // Dummy IP 1
-		"192.168.1.101", // Dummy IP 2
+	// Use the DNS resolver to get actual IP addresses
+	ips, err := uc.dnsResolver.ResolveIPs(ctx, domain)
+	if err != nil {
+		uc.logger.Error("Failed to resolve IPs for domain",
+			zap.String("domain", domain),
+			zap.Error(err))
+		return nil, fmt.Errorf("DNS resolution failed for domain %s: %w", domain, err)
 	}
 
-	uc.logger.Info("IP discovery completed (using dummy data)",
-		zap.String("domain", domain),
-		zap.Strings("ips", dummyIPs))
+	if len(ips) == 0 {
+		uc.logger.Warn("No IPs discovered for domain", zap.String("domain", domain))
+		return []string{}, nil
+	}
 
-	return dummyIPs, nil
+	uc.logger.Info("IP discovery completed",
+		zap.String("domain", domain),
+		zap.Strings("ips", ips))
+
+	return ips, nil
 }
 
 // updateFirewallRules updates firewall rules based on discovered IPs
@@ -176,11 +183,29 @@ func (uc *DomainBlockerUseCase) calculateIPChanges(existingIPs, newIPs []string)
 func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain string, ipsToAdd, ipsToRemove []string) error {
 	// Add new IPs
 	for _, ip := range ipsToAdd {
-		// Add firewall rule (implementation will be added in subsequent tasks)
-		uc.logger.Info("Adding firewall rule", zap.String("domain", domain), zap.String("ip", ip))
+		uc.logger.Info("Adding firewall rule and domain IP",
+			zap.String("domain", domain),
+			zap.String("ip", ip))
 
+		// Add firewall rule first
+		if err := uc.firewallManager.AddBlockRule(ctx, ip); err != nil {
+			uc.logger.Warn("Failed to add firewall rule, continuing with others",
+				zap.String("domain", domain),
+				zap.String("ip", ip),
+				zap.Error(err))
+			continue
+		}
+
+		// Then add to database
 		if err := uc.domainRepo.CreateDomainIP(ctx, domain, ip); err != nil {
-			// Continue processing other IPs even if one fails
+			// If database insertion fails, try to remove the firewall rule
+			if rollbackErr := uc.firewallManager.RemoveBlockRule(ctx, ip); rollbackErr != nil {
+				uc.logger.Error("Failed to rollback firewall rule after database error",
+					zap.String("domain", domain),
+					zap.String("ip", ip),
+					zap.Error(rollbackErr))
+			}
+			
 			uc.logger.Warn("Failed to create domain IP, continuing with others",
 				zap.String("domain", domain),
 				zap.String("ip", ip),
@@ -188,18 +213,19 @@ func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain strin
 			continue
 		}
 
-		uc.logger.Info("Successfully added domain IP",
+		uc.logger.Info("Successfully added firewall rule and domain IP",
 			zap.String("domain", domain),
 			zap.String("ip", ip))
 	}
 
 	// Remove obsolete IPs
 	for _, ip := range ipsToRemove {
-		// Remove firewall rule (implementation will be added in subsequent tasks)
-		uc.logger.Info("Removing firewall rule", zap.String("domain", domain), zap.String("ip", ip))
+		uc.logger.Info("Removing firewall rule and domain IP",
+			zap.String("domain", domain),
+			zap.String("ip", ip))
 
+		// Remove from database first
 		if err := uc.domainRepo.DeleteDomainIP(ctx, domain, ip); err != nil {
-			// Continue processing other IPs even if one fails
 			uc.logger.Warn("Failed to delete domain IP, continuing with others",
 				zap.String("domain", domain),
 				zap.String("ip", ip),
@@ -207,7 +233,16 @@ func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain strin
 			continue
 		}
 
-		uc.logger.Info("Successfully removed domain IP",
+		// Then remove firewall rule
+		if err := uc.firewallManager.RemoveBlockRule(ctx, ip); err != nil {
+			uc.logger.Warn("Failed to remove firewall rule, but database entry was deleted",
+				zap.String("domain", domain),
+				zap.String("ip", ip),
+				zap.Error(err))
+			continue
+		}
+
+		uc.logger.Info("Successfully removed firewall rule and domain IP",
 			zap.String("domain", domain),
 			zap.String("ip", ip))
 	}

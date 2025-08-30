@@ -108,7 +108,14 @@ func LoadConfig(version string) (*Config, error) {
 			MaxConcurrency: maxConcurrency,
 			DomainTimeout:  domainTimeout,
 		},
-		// TODO: Database config will be implemented in subsequent tasks
+		Database: db.Config{
+			Host:     getEnv("DB_HOST", "localhost"),
+			Port:     getEnv("DB_PORT", "5432"),
+			DBName:   getEnv("DB_NAME", "router_manager"),
+			User:     getEnv("DB_USER", "postgres"),
+			Password: getEnv("DB_PASSWORD", ""),
+			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
+		},
 	}
 
 	// Validate configuration
