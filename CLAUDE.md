@@ -150,6 +150,7 @@ lefthook run pre-push
 - nftablesやdnsmasqの操作を含むコードは、テスト環境で動作確認を行う
 - ファイルを一通り編集した後、下記のようにgofumptで整形
   - `gofumpt -w .`
+- github issueで修正を行い`git commit`する場合、timezoneはJSTを使用
 
 ## 動作確認
 
