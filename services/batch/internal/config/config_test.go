@@ -7,6 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tokane888/router-manager-go/pkg/logger"
+	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/dns"
+	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/firewall"
+	"github.com/tokane888/router-manager-go/services/batch/internal/usecase"
 )
 
 // TestLoadConfig is removed as it requires extensive environment setup
@@ -21,15 +24,15 @@ func validConfig() *Config {
 			Level:  "info",
 			Format: "local",
 		},
-		Processing: ProcessingConfig{
+		Processing: usecase.ProcessingConfig{
 			MaxConcurrency: 10,
 			DomainTimeout:  30 * time.Second,
 		},
-		DNS: DNSConfig{
+		DNS: dns.DNSConfig{
 			Timeout:       5 * time.Second,
 			RetryAttempts: 3,
 		},
-		Firewall: FirewallConfig{
+		Firewall: firewall.FirewallConfig{
 			CommandTimeout: 10 * time.Second,
 			Table:          "ip filter",
 			Chain:          "OUTPUT",

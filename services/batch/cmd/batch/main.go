@@ -37,7 +37,7 @@ func main() {
 	// Initialize database connection
 	database, err := db.NewDB(cfg.Database, logger)
 	if err != nil {
-		logger.Fatal("Failed to initialize database connection", 
+		logger.Fatal("Failed to initialize database connection",
 			zap.Error(err))
 	}
 	defer database.Close()
@@ -46,18 +46,18 @@ func main() {
 	dnsResolver := dns.NewDNSResolver(&cfg.DNS, net.DefaultResolver, logger)
 
 	// Initialize firewall manager
-	firewallManager := firewall.NewNFTablesManager(logger, cfg.Firewall.DryRun)
+	firewallManager := firewall.NewNFTablesManager(cfg.Firewall, logger)
 
 	// Initialize use case
 	domainBlockerUseCase := usecase.NewDomainBlockerUseCase(
-		database, 
-		dnsResolver, 
-		firewallManager, 
+		database,
+		dnsResolver,
+		firewallManager,
 		logger,
 	)
 
 	logger.Info("Starting domain processing")
-	
+
 	// Execute domain processing
 	if err := domainBlockerUseCase.ProcessAllDomains(ctx); err != nil {
 		logger.Error("Failed to process domains", zap.Error(err))

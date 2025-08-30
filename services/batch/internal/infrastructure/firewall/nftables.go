@@ -4,11 +4,21 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"time"
 
 	"go.uber.org/zap"
 )
 
 // NFTablesManager implements the FirewallManager interface for nftables
+
+// FirewallConfig contains firewall management configuration
+type FirewallConfig struct {
+	DryRun         bool
+	CommandTimeout time.Duration
+	Table          string
+	Chain          string
+}
+
 type NFTablesManager struct {
 	logger    *zap.Logger
 	dryRun    bool   // For development environments
@@ -17,12 +27,12 @@ type NFTablesManager struct {
 }
 
 // NewNFTablesManager creates a new nftables manager implementation
-func NewNFTablesManager(logger *zap.Logger, dryRun bool) *NFTablesManager {
+func NewNFTablesManager(cfg FirewallConfig, logger *zap.Logger) *NFTablesManager {
 	return &NFTablesManager{
 		logger:    logger,
-		dryRun:    dryRun,
-		tableName: "filter",
-		chainName: "OUTPUT",
+		dryRun:    cfg.DryRun,
+		tableName: cfg.Table,
+		chainName: cfg.Chain,
 	}
 }
 
@@ -63,8 +73,8 @@ func (n *NFTablesManager) RemoveBlockRule(ctx context.Context, ip string) error 
 	args := []string{"delete", "rule", "ip", n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
 	if err := n.executeCommand(ctx, args); err != nil {
 		// If the rule doesn't exist, nftables will return an error, but we can log and continue
-		n.logger.Warn("Failed to remove firewall rule (may not exist)", 
-			zap.String("ip", ip), 
+		n.logger.Warn("Failed to remove firewall rule (may not exist)",
+			zap.String("ip", ip),
 			zap.Error(err))
 		return nil // Don't return error to continue processing other IPs
 	}
@@ -79,7 +89,6 @@ func (n *NFTablesManager) executeCommand(ctx context.Context, args []string) err
 
 	cmd := exec.CommandContext(ctx, "nft", args...)
 	output, err := cmd.CombinedOutput()
-	
 	if err != nil {
 		n.logger.Error("nft command failed",
 			zap.Strings("args", args),
@@ -91,7 +100,7 @@ func (n *NFTablesManager) executeCommand(ctx context.Context, args []string) err
 	n.logger.Debug("nft command executed successfully",
 		zap.Strings("args", args),
 		zap.String("output", string(output)))
-	
+
 	return nil
 }
 

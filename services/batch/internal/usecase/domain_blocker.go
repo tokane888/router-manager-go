@@ -3,12 +3,18 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/tokane888/router-manager-go/services/batch/internal/domain/repository"
 	"go.uber.org/zap"
 )
 
-// DomainBlockerUseCase handles the core business logic for domain blocking
+// ProcessingConfig contains domain processing configuration
+type ProcessingConfig struct {
+	MaxConcurrency int // Configurable via environment variable, default 10
+	DomainTimeout  time.Duration
+}
+
 type DomainBlockerUseCase struct {
 	domainRepo      repository.DomainRepository
 	dnsResolver     repository.DNSResolver
@@ -205,7 +211,7 @@ func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain strin
 					zap.String("ip", ip),
 					zap.Error(rollbackErr))
 			}
-			
+
 			uc.logger.Warn("Failed to create domain IP, continuing with others",
 				zap.String("domain", domain),
 				zap.String("ip", ip),

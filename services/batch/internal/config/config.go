@@ -10,6 +10,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tokane888/router-manager-go/pkg/db"
 	"github.com/tokane888/router-manager-go/pkg/logger"
+	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/dns"
+	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/firewall"
+	"github.com/tokane888/router-manager-go/services/batch/internal/usecase"
 )
 
 // Config represents the application configuration
@@ -17,29 +20,9 @@ type Config struct {
 	Env        string
 	Logger     logger.LoggerConfig
 	Database   db.Config
-	DNS        DNSConfig
-	Firewall   FirewallConfig
-	Processing ProcessingConfig
-}
-
-// DNSConfig contains DNS resolution configuration
-type DNSConfig struct {
-	Timeout       time.Duration
-	RetryAttempts int
-}
-
-// FirewallConfig contains firewall management configuration
-type FirewallConfig struct {
-	DryRun         bool
-	CommandTimeout time.Duration
-	Table          string
-	Chain          string
-}
-
-// ProcessingConfig contains domain processing configuration
-type ProcessingConfig struct {
-	MaxConcurrency int // Configurable via environment variable, default 10
-	DomainTimeout  time.Duration
+	DNS        dns.DNSConfig
+	Firewall   firewall.FirewallConfig
+	Processing usecase.ProcessingConfig
 }
 
 // LoadConfig loads configuration from environment variables and defaults
@@ -94,17 +77,17 @@ func LoadConfig(version string) (*Config, error) {
 			Level:      logLevel,
 			Format:     logFormat,
 		},
-		DNS: DNSConfig{
+		DNS: dns.DNSConfig{
 			Timeout:       dnsTimeout,
 			RetryAttempts: dnsRetryAttempts,
 		},
-		Firewall: FirewallConfig{
+		Firewall: firewall.FirewallConfig{
 			DryRun:         firewallDryRun,
 			CommandTimeout: firewallTimeout,
 			Table:          getEnv("FIREWALL_TABLE", "ip filter"),
 			Chain:          getEnv("FIREWALL_CHAIN", "OUTPUT"),
 		},
-		Processing: ProcessingConfig{
+		Processing: usecase.ProcessingConfig{
 			MaxConcurrency: maxConcurrency,
 			DomainTimeout:  domainTimeout,
 		},

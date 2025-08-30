@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/tokane888/router-manager-go/services/batch/internal/config"
 	"go.uber.org/zap"
 )
 
@@ -110,7 +109,7 @@ func TestResolveIPs(t *testing.T) {
 				tt.mockBehavior(mockRes)
 			}
 
-			cfg := &config.DNSConfig{
+			cfg := &DNSConfig{
 				Timeout:       tt.timeout,
 				RetryAttempts: tt.retryAttempts,
 			}
