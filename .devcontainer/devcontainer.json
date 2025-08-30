@@ -32,8 +32,7 @@
         "redhat.vscode-yaml",
         "streetsidesoftware.code-spell-checker",
         "timonwong.shellcheck",
-        "yzhang.markdown-all-in-one",
-        "saoudrizwan.claude-dev"
+        "yzhang.markdown-all-in-one"
       ],
       "settings": {
         "editor.formatOnSave": true,
