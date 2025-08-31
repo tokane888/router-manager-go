@@ -21,7 +21,7 @@ type Config struct {
 	Logger     logger.LoggerConfig
 	Database   db.Config
 	DNS        dns.DNSConfig
-	Firewall   firewall.FirewallConfig
+	Firewall   firewall.NFTablesManagerConfig
 	Processing usecase.ProcessingConfig
 }
 
@@ -81,7 +81,7 @@ func LoadConfig(version string) (*Config, error) {
 			Timeout:       dnsTimeout,
 			RetryAttempts: dnsRetryAttempts,
 		},
-		Firewall: firewall.FirewallConfig{
+		Firewall: firewall.NFTablesManagerConfig{
 			DryRun:         firewallDryRun,
 			CommandTimeout: firewallTimeout,
 			Family:         getEnv("FIREWALL_FAMILY", "ip"),

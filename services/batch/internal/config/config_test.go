@@ -32,7 +32,7 @@ func validConfig() *Config {
 			Timeout:       5 * time.Second,
 			RetryAttempts: 3,
 		},
-		Firewall: firewall.FirewallConfig{
+		Firewall: firewall.NFTablesManagerConfig{
 			CommandTimeout: 10 * time.Second,
 			Family:         "ip",
 			Table:          "filter",

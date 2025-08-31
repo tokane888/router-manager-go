@@ -11,8 +11,8 @@ import (
 
 // NFTablesManager implements the FirewallManager interface for nftables
 
-// FirewallConfig contains firewall management configuration
-type FirewallConfig struct {
+// NFTablesManagerConfig contains firewall management configuration
+type NFTablesManagerConfig struct {
 	DryRun         bool
 	CommandTimeout time.Duration
 	Family         string // nftables address family (ip, ip6, inet, etc.)
@@ -29,7 +29,7 @@ type NFTablesManager struct {
 }
 
 // NewNFTablesManager creates a new nftables manager implementation
-func NewNFTablesManager(cfg FirewallConfig, logger *zap.Logger) *NFTablesManager {
+func NewNFTablesManager(cfg NFTablesManagerConfig, logger *zap.Logger) *NFTablesManager {
 	return &NFTablesManager{
 		logger:    logger,
 		dryRun:    cfg.DryRun,
