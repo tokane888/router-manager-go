@@ -15,13 +15,15 @@ import (
 type FirewallConfig struct {
 	DryRun         bool
 	CommandTimeout time.Duration
-	Table          string
-	Chain          string
+	Family         string // nftables address family (ip, ip6, inet, etc.)
+	Table          string // nftables table name
+	Chain          string // nftables chain name
 }
 
 type NFTablesManager struct {
 	logger    *zap.Logger
 	dryRun    bool   // For development environments
+	family    string // nftables address family
 	tableName string // nftables table name
 	chainName string // nftables chain name
 }
@@ -31,6 +33,7 @@ func NewNFTablesManager(cfg FirewallConfig, logger *zap.Logger) *NFTablesManager
 	return &NFTablesManager{
 		logger:    logger,
 		dryRun:    cfg.DryRun,
+		family:    cfg.Family,
 		tableName: cfg.Table,
 		chainName: cfg.Chain,
 	}
@@ -45,13 +48,13 @@ func (n *NFTablesManager) AddBlockRule(ctx context.Context, ip string) error {
 
 	n.logger.Info("Adding firewall rule", zap.String("ip", ip))
 
-	// Ensure the table and chain exist
+	// Check if table and chain exist (do not create)
 	if err := n.ensureTableAndChainExist(ctx); err != nil {
-		return fmt.Errorf("failed to ensure table and chain exist: %w", err)
+		return fmt.Errorf("failed to check table and chain: %w", err)
 	}
 
 	// Add the blocking rule
-	args := []string{"add", "rule", "ip", n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
+	args := []string{"add", "rule", n.family, n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
 	if err := n.executeCommand(ctx, args); err != nil {
 		return fmt.Errorf("failed to add blocking rule for IP %s: %w", ip, err)
 	}
@@ -70,7 +73,7 @@ func (n *NFTablesManager) RemoveBlockRule(ctx context.Context, ip string) error 
 	n.logger.Info("Removing firewall rule", zap.String("ip", ip))
 
 	// Delete the specific rule (nftables will find and remove the matching rule)
-	args := []string{"delete", "rule", "ip", n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
+	args := []string{"delete", "rule", n.family, n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
 	if err := n.executeCommand(ctx, args); err != nil {
 		// If the rule doesn't exist, nftables will return an error, but we can log and continue
 		n.logger.Warn("Failed to remove firewall rule (may not exist)",
@@ -106,19 +109,25 @@ func (n *NFTablesManager) executeCommand(ctx context.Context, args []string) err
 
 // ensureTableAndChainExist ensures the nftables table and chain exist
 func (n *NFTablesManager) ensureTableAndChainExist(ctx context.Context) error {
-	// Create table if it doesn't exist (this will not error if table already exists)
-	args := []string{"add", "table", "ip", n.tableName}
-	if err := n.executeCommand(ctx, args); err != nil {
-		return fmt.Errorf("failed to create table: %w", err)
+	// Check if table exists
+	checkTableArgs := []string{"list", "table", n.family, n.tableName}
+	if err := n.executeCommand(ctx, checkTableArgs); err != nil {
+		n.logger.Error("Table does not exist",
+			zap.String("family", n.family),
+			zap.String("table", n.tableName),
+			zap.Error(err))
+		return fmt.Errorf("table %s in family %s does not exist: %w", n.tableName, n.family, err)
 	}
 
-	// Create chain if it doesn't exist with OUTPUT hook and policy accept
-	args = []string{"add", "chain", "ip", n.tableName, n.chainName, "{", "type", "filter", "hook", "output", "priority", "0", ";", "policy", "accept", ";", "}"}
-	if err := n.executeCommand(ctx, args); err != nil {
-		// If chain already exists, this might fail, but we can continue
-		n.logger.Debug("Chain creation command result (may already exist)",
-			zap.Strings("args", args),
+	// Check if chain exists
+	checkChainArgs := []string{"list", "chain", n.family, n.tableName, n.chainName}
+	if err := n.executeCommand(ctx, checkChainArgs); err != nil {
+		n.logger.Error("Chain does not exist",
+			zap.String("family", n.family),
+			zap.String("table", n.tableName),
+			zap.String("chain", n.chainName),
 			zap.Error(err))
+		return fmt.Errorf("chain %s in table %s (family %s) does not exist: %w", n.chainName, n.tableName, n.family, err)
 	}
 
 	return nil

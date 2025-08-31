@@ -84,7 +84,8 @@ func LoadConfig(version string) (*Config, error) {
 		Firewall: firewall.FirewallConfig{
 			DryRun:         firewallDryRun,
 			CommandTimeout: firewallTimeout,
-			Table:          getEnv("FIREWALL_TABLE", "ip filter"),
+			Family:         getEnv("FIREWALL_FAMILY", "ip"),
+			Table:          getEnv("FIREWALL_TABLE", "filter"),
 			Chain:          getEnv("FIREWALL_CHAIN", "DOCKER-USER"),
 		},
 		Processing: usecase.ProcessingConfig{
@@ -191,6 +192,9 @@ func validateConfig(cfg *Config) error {
 	// Validate firewall configuration
 	if cfg.Firewall.CommandTimeout <= 0 {
 		return fmt.Errorf("firewall command timeout must be positive, got: %v", cfg.Firewall.CommandTimeout)
+	}
+	if cfg.Firewall.Family == "" {
+		return errors.New("firewall family cannot be empty")
 	}
 	if cfg.Firewall.Table == "" {
 		return errors.New("firewall table cannot be empty")

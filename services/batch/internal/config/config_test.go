@@ -34,7 +34,8 @@ func validConfig() *Config {
 		},
 		Firewall: firewall.FirewallConfig{
 			CommandTimeout: 10 * time.Second,
-			Table:          "ip filter",
+			Family:         "ip",
+			Table:          "filter",
 			Chain:          "OUTPUT",
 		},
 	}
@@ -164,6 +165,18 @@ func Test_validateConfig(t *testing.T) {
 			},
 			wantErr:     true,
 			errContains: "firewall command timeout must be positive",
+		},
+		{
+			name: "empty firewall family",
+			args: args{
+				cfg: func() *Config {
+					cfg := validConfig()
+					cfg.Firewall.Family = ""
+					return cfg
+				}(),
+			},
+			wantErr:     true,
+			errContains: "firewall family cannot be empty",
 		},
 		{
 			name: "empty firewall table",
