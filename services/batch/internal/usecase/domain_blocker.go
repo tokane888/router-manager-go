@@ -266,69 +266,79 @@ func (uc *DomainBlockerUseCase) calculateIPChanges(existingIPs, newIPs []string)
 func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain string, ipsToAdd, ipsToRemove []string) error {
 	// Add new IPs
 	for _, ip := range ipsToAdd {
-		uc.logger.Info("Adding nftables rule and domain IP",
-			zap.String("domain", domain),
-			zap.String("ip", ip))
-
-		// Add nftables rule first
-		if err := uc.firewallManager.AddBlockRule(ctx, ip); err != nil {
-			uc.logger.Warn("Failed to add nftables rule, continuing with others",
-				zap.String("domain", domain),
-				zap.String("ip", ip),
-				zap.Error(err))
-			continue
-		}
-
-		// Then add to database
-		if err := uc.domainRepo.CreateDomainIP(ctx, domain, ip); err != nil {
-			// If database insertion fails, try to remove the nftables rule
-			if rollbackErr := uc.firewallManager.RemoveBlockRule(ctx, ip); rollbackErr != nil {
-				uc.logger.Error("Failed to rollback nftables rule after database error",
-					zap.String("domain", domain),
-					zap.String("ip", ip),
-					zap.Error(rollbackErr))
-			}
-
-			uc.logger.Warn("Failed to create domain IP, continuing with others",
-				zap.String("domain", domain),
-				zap.String("ip", ip),
-				zap.Error(err))
-			continue
-		}
-
-		uc.logger.Info("Successfully added nftables rule and domain IP",
-			zap.String("domain", domain),
-			zap.String("ip", ip))
+		uc.addIP(ctx, domain, ip)
 	}
 
 	// Remove obsolete IPs
 	for _, ip := range ipsToRemove {
-		uc.logger.Info("Removing nftables rule and domain IP",
-			zap.String("domain", domain),
-			zap.String("ip", ip))
-
-		// Remove from database first
-		if err := uc.domainRepo.DeleteDomainIP(ctx, domain, ip); err != nil {
-			uc.logger.Warn("Failed to delete domain IP, continuing with others",
-				zap.String("domain", domain),
-				zap.String("ip", ip),
-				zap.Error(err))
-			continue
-		}
-
-		// Then remove nftables rule
-		if err := uc.firewallManager.RemoveBlockRule(ctx, ip); err != nil {
-			uc.logger.Warn("Failed to remove nftables rule, but database entry was deleted",
-				zap.String("domain", domain),
-				zap.String("ip", ip),
-				zap.Error(err))
-			continue
-		}
-
-		uc.logger.Info("Successfully removed nftables rule and domain IP",
-			zap.String("domain", domain),
-			zap.String("ip", ip))
+		uc.removeIP(ctx, domain, ip)
 	}
 
 	return nil
+}
+
+// addIP adds a new IP address to both nftables and database
+func (uc *DomainBlockerUseCase) addIP(ctx context.Context, domain, ip string) {
+	uc.logger.Info("Adding nftables rule and domain IP",
+		zap.String("domain", domain),
+		zap.String("ip", ip))
+
+	// Add nftables rule first
+	if err := uc.firewallManager.AddBlockRule(ctx, ip); err != nil {
+		uc.logger.Warn("Failed to add nftables rule, continuing with others",
+			zap.String("domain", domain),
+			zap.String("ip", ip),
+			zap.Error(err))
+		return
+	}
+
+	// Then add to database
+	if err := uc.domainRepo.CreateDomainIP(ctx, domain, ip); err != nil {
+		// If database insertion fails, try to remove the nftables rule
+		if rollbackErr := uc.firewallManager.RemoveBlockRule(ctx, ip); rollbackErr != nil {
+			uc.logger.Error("Failed to rollback nftables rule after database error",
+				zap.String("domain", domain),
+				zap.String("ip", ip),
+				zap.Error(rollbackErr))
+		}
+
+		uc.logger.Warn("Failed to create domain IP, continuing with others",
+			zap.String("domain", domain),
+			zap.String("ip", ip),
+			zap.Error(err))
+		return
+	}
+
+	uc.logger.Info("Successfully added nftables rule and domain IP",
+		zap.String("domain", domain),
+		zap.String("ip", ip))
+}
+
+// removeIP removes an IP address from both database and nftables
+func (uc *DomainBlockerUseCase) removeIP(ctx context.Context, domain, ip string) {
+	uc.logger.Info("Removing nftables rule and domain IP",
+		zap.String("domain", domain),
+		zap.String("ip", ip))
+
+	// Remove from database first
+	if err := uc.domainRepo.DeleteDomainIP(ctx, domain, ip); err != nil {
+		uc.logger.Warn("Failed to delete domain IP, continuing with others",
+			zap.String("domain", domain),
+			zap.String("ip", ip),
+			zap.Error(err))
+		return
+	}
+
+	// Then remove nftables rule
+	if err := uc.firewallManager.RemoveBlockRule(ctx, ip); err != nil {
+		uc.logger.Warn("Failed to remove nftables rule, but database entry was deleted",
+			zap.String("domain", domain),
+			zap.String("ip", ip),
+			zap.Error(err))
+		return
+	}
+
+	uc.logger.Info("Successfully removed nftables rule and domain IP",
+		zap.String("domain", domain),
+		zap.String("ip", ip))
 }
