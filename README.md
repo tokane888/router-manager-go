@@ -52,12 +52,12 @@ export ANTHROPIC_API_KEY="sk-ant-xxx..."
 - 各サービスは独立した go.mod を持つ
 - 設計はクリーンアーキテクチャに従う
 
-## サービス実行例
+## 手動実行例
 
 ```bash
-# API サービスの実行
-cd services/api
-go run ./cmd/app
+# batch実行例
+cd services/batch
+sudo -E /usr/local/go/bin/go run ./cmd/batch/
 ```
 
 ## サービスデバッグ実行例
