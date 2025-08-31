@@ -21,7 +21,7 @@ type Config struct {
 	Logger     logger.LoggerConfig
 	Database   db.Config
 	DNS        dns.DNSConfig
-	Firewall   firewall.NFTablesManagerConfig
+	NFTables   firewall.NFTablesManagerConfig
 	Processing usecase.ProcessingConfig
 }
 
@@ -50,12 +50,12 @@ func LoadConfig(version string) (*Config, error) {
 		return nil, err
 	}
 
-	firewallDryRun, err := getBoolEnv("FIREWALL_DRY_RUN", true)
+	nftablesDryRun, err := getBoolEnv("NFTABLES_DRY_RUN", true)
 	if err != nil {
 		return nil, err
 	}
 
-	firewallTimeout, err := getDurationEnv("FIREWALL_COMMAND_TIMEOUT", 10*time.Second)
+	nftablesTimeout, err := getDurationEnv("NFTABLES_COMMAND_TIMEOUT", 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -81,12 +81,12 @@ func LoadConfig(version string) (*Config, error) {
 			Timeout:       dnsTimeout,
 			RetryAttempts: dnsRetryAttempts,
 		},
-		Firewall: firewall.NFTablesManagerConfig{
-			DryRun:         firewallDryRun,
-			CommandTimeout: firewallTimeout,
-			Family:         getEnv("FIREWALL_FAMILY", "ip"),
-			Table:          getEnv("FIREWALL_TABLE", "filter"),
-			Chain:          getEnv("FIREWALL_CHAIN", "OUTPUT"),
+		NFTables: firewall.NFTablesManagerConfig{
+			DryRun:         nftablesDryRun,
+			CommandTimeout: nftablesTimeout,
+			Family:         getEnv("NFTABLES_FAMILY", "ip"),
+			Table:          getEnv("NFTABLES_TABLE", "filter"),
+			Chain:          getEnv("NFTABLES_CHAIN", "OUTPUT"),
 		},
 		Processing: usecase.ProcessingConfig{
 			MaxConcurrency: maxConcurrency,
@@ -189,18 +189,18 @@ func validateConfig(cfg *Config) error {
 		return fmt.Errorf("DNS retry attempts too high: %d (maximum: 10)", cfg.DNS.RetryAttempts)
 	}
 
-	// Validate firewall configuration
-	if cfg.Firewall.CommandTimeout <= 0 {
-		return fmt.Errorf("firewall command timeout must be positive, got: %v", cfg.Firewall.CommandTimeout)
+	// Validate nftables configuration
+	if cfg.NFTables.CommandTimeout <= 0 {
+		return fmt.Errorf("nftables command timeout must be positive, got: %v", cfg.NFTables.CommandTimeout)
 	}
-	if cfg.Firewall.Family == "" {
-		return errors.New("firewall family cannot be empty")
+	if cfg.NFTables.Family == "" {
+		return errors.New("nftables family cannot be empty")
 	}
-	if cfg.Firewall.Table == "" {
-		return errors.New("firewall table cannot be empty")
+	if cfg.NFTables.Table == "" {
+		return errors.New("nftables table cannot be empty")
 	}
-	if cfg.Firewall.Chain == "" {
-		return errors.New("firewall chain cannot be empty")
+	if cfg.NFTables.Chain == "" {
+		return errors.New("nftables chain cannot be empty")
 	}
 
 	// Validate domain timeout

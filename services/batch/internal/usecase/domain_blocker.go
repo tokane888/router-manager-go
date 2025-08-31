@@ -18,7 +18,7 @@ type ProcessingConfig struct {
 type DomainBlockerUseCase struct {
 	domainRepo      repository.DomainRepository
 	dnsResolver     repository.DNSResolver
-	firewallManager repository.FirewallManager
+	nftablesManager repository.NFTablesManager
 	logger          *zap.Logger
 }
 
@@ -26,13 +26,13 @@ type DomainBlockerUseCase struct {
 func NewDomainBlockerUseCase(
 	domainRepo repository.DomainRepository,
 	dnsResolver repository.DNSResolver,
-	firewallManager repository.FirewallManager,
+	nftablesManager repository.NFTablesManager,
 	logger *zap.Logger,
 ) *DomainBlockerUseCase {
 	return &DomainBlockerUseCase{
 		domainRepo:      domainRepo,
 		dnsResolver:     dnsResolver,
-		firewallManager: firewallManager,
+		nftablesManager: nftablesManager,
 		logger:          logger,
 	}
 }
@@ -78,9 +78,9 @@ func (uc *DomainBlockerUseCase) processDomain(ctx context.Context, domain string
 		zap.String("domain", domain),
 		zap.Int("ip_count", len(discoveredIPs)))
 
-	// Update firewall rules based on discovered IPs
+	// Update nftables rules based on discovered IPs
 	if err := uc.updateFirewallRules(ctx, domain, discoveredIPs); err != nil {
-		return fmt.Errorf("failed to update firewall rules for domain %s: %w", domain, err)
+		return fmt.Errorf("failed to update nftables rules for domain %s: %w", domain, err)
 	}
 
 	uc.logger.Info("Successfully processed domain", zap.String("domain", domain))
@@ -112,7 +112,7 @@ func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain strin
 	return ips, nil
 }
 
-// updateFirewallRules updates firewall rules based on discovered IPs
+// updateFirewallRules updates nftables rules based on discovered IPs
 func (uc *DomainBlockerUseCase) updateFirewallRules(ctx context.Context, domain string, newIPs []string) error {
 	// Get existing IPs
 	existingIPs, err := uc.getExistingIPs(ctx, domain)
@@ -128,7 +128,7 @@ func (uc *DomainBlockerUseCase) updateFirewallRules(ctx context.Context, domain 
 		return fmt.Errorf("failed to apply IP changes for domain %s: %w", domain, err)
 	}
 
-	uc.logger.Info("Completed firewall rules update",
+	uc.logger.Info("Completed nftables rules update",
 		zap.String("domain", domain),
 		zap.Int("added", len(ipsToAdd)),
 		zap.Int("removed", len(ipsToRemove)))
@@ -189,13 +189,13 @@ func (uc *DomainBlockerUseCase) calculateIPChanges(existingIPs, newIPs []string)
 func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain string, ipsToAdd, ipsToRemove []string) error {
 	// Add new IPs
 	for _, ip := range ipsToAdd {
-		uc.logger.Info("Adding firewall rule and domain IP",
+		uc.logger.Info("Adding nftables rule and domain IP",
 			zap.String("domain", domain),
 			zap.String("ip", ip))
 
-		// Add firewall rule first
-		if err := uc.firewallManager.AddBlockRule(ctx, ip); err != nil {
-			uc.logger.Warn("Failed to add firewall rule, continuing with others",
+		// Add nftables rule first
+		if err := uc.nftablesManager.AddBlockRule(ctx, ip); err != nil {
+			uc.logger.Warn("Failed to add nftables rule, continuing with others",
 				zap.String("domain", domain),
 				zap.String("ip", ip),
 				zap.Error(err))
@@ -204,9 +204,9 @@ func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain strin
 
 		// Then add to database
 		if err := uc.domainRepo.CreateDomainIP(ctx, domain, ip); err != nil {
-			// If database insertion fails, try to remove the firewall rule
-			if rollbackErr := uc.firewallManager.RemoveBlockRule(ctx, ip); rollbackErr != nil {
-				uc.logger.Error("Failed to rollback firewall rule after database error",
+			// If database insertion fails, try to remove the nftables rule
+			if rollbackErr := uc.nftablesManager.RemoveBlockRule(ctx, ip); rollbackErr != nil {
+				uc.logger.Error("Failed to rollback nftables rule after database error",
 					zap.String("domain", domain),
 					zap.String("ip", ip),
 					zap.Error(rollbackErr))
@@ -219,14 +219,14 @@ func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain strin
 			continue
 		}
 
-		uc.logger.Info("Successfully added firewall rule and domain IP",
+		uc.logger.Info("Successfully added nftables rule and domain IP",
 			zap.String("domain", domain),
 			zap.String("ip", ip))
 	}
 
 	// Remove obsolete IPs
 	for _, ip := range ipsToRemove {
-		uc.logger.Info("Removing firewall rule and domain IP",
+		uc.logger.Info("Removing nftables rule and domain IP",
 			zap.String("domain", domain),
 			zap.String("ip", ip))
 
@@ -239,16 +239,16 @@ func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain strin
 			continue
 		}
 
-		// Then remove firewall rule
-		if err := uc.firewallManager.RemoveBlockRule(ctx, ip); err != nil {
-			uc.logger.Warn("Failed to remove firewall rule, but database entry was deleted",
+		// Then remove nftables rule
+		if err := uc.nftablesManager.RemoveBlockRule(ctx, ip); err != nil {
+			uc.logger.Warn("Failed to remove nftables rule, but database entry was deleted",
 				zap.String("domain", domain),
 				zap.String("ip", ip),
 				zap.Error(err))
 			continue
 		}
 
-		uc.logger.Info("Successfully removed firewall rule and domain IP",
+		uc.logger.Info("Successfully removed nftables rule and domain IP",
 			zap.String("domain", domain),
 			zap.String("ip", ip))
 	}

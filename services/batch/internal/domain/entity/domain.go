@@ -6,7 +6,7 @@ type Domain struct {
 	IPs  []string
 }
 
-// BlockingRule represents a firewall rule
+// BlockingRule represents an nftables rule
 type BlockingRule struct {
 	IP     string
 	Action string // "add" or "remove"

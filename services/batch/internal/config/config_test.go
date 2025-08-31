@@ -32,7 +32,7 @@ func validConfig() *Config {
 			Timeout:       5 * time.Second,
 			RetryAttempts: 3,
 		},
-		Firewall: firewall.NFTablesManagerConfig{
+		NFTables: firewall.NFTablesManagerConfig{
 			CommandTimeout: 10 * time.Second,
 			Family:         "ip",
 			Table:          "filter",
@@ -155,52 +155,52 @@ func Test_validateConfig(t *testing.T) {
 			errContains: "DNS retry attempts too high",
 		},
 		{
-			name: "invalid firewall command timeout",
+			name: "invalid nftables command timeout",
 			args: args{
 				cfg: func() *Config {
 					cfg := validConfig()
-					cfg.Firewall.CommandTimeout = 0
+					cfg.NFTables.CommandTimeout = 0
 					return cfg
 				}(),
 			},
 			wantErr:     true,
-			errContains: "firewall command timeout must be positive",
+			errContains: "nftables command timeout must be positive",
 		},
 		{
-			name: "empty firewall family",
+			name: "empty nftables family",
 			args: args{
 				cfg: func() *Config {
 					cfg := validConfig()
-					cfg.Firewall.Family = ""
+					cfg.NFTables.Family = ""
 					return cfg
 				}(),
 			},
 			wantErr:     true,
-			errContains: "firewall family cannot be empty",
+			errContains: "nftables family cannot be empty",
 		},
 		{
-			name: "empty firewall table",
+			name: "empty nftables table",
 			args: args{
 				cfg: func() *Config {
 					cfg := validConfig()
-					cfg.Firewall.Table = ""
+					cfg.NFTables.Table = ""
 					return cfg
 				}(),
 			},
 			wantErr:     true,
-			errContains: "firewall table cannot be empty",
+			errContains: "nftables table cannot be empty",
 		},
 		{
-			name: "empty firewall chain",
+			name: "empty nftables chain",
 			args: args{
 				cfg: func() *Config {
 					cfg := validConfig()
-					cfg.Firewall.Chain = ""
+					cfg.NFTables.Chain = ""
 					return cfg
 				}(),
 			},
 			wantErr:     true,
-			errContains: "firewall chain cannot be empty",
+			errContains: "nftables chain cannot be empty",
 		},
 		{
 			name: "invalid domain timeout",

@@ -9,9 +9,9 @@ import (
 	"go.uber.org/zap"
 )
 
-// NFTablesManager implements the FirewallManager interface for nftables
+// NFTablesManager implements the NFTablesManager interface for nftables
 
-// NFTablesManagerConfig contains firewall management configuration
+// NFTablesManagerConfig contains nftables management configuration
 type NFTablesManagerConfig struct {
 	DryRun         bool
 	CommandTimeout time.Duration
@@ -42,11 +42,11 @@ func NewNFTablesManager(cfg NFTablesManagerConfig, logger *zap.Logger) *NFTables
 // AddBlockRule adds a blocking rule for the specified IP
 func (n *NFTablesManager) AddBlockRule(ctx context.Context, ip string) error {
 	if n.dryRun {
-		n.logger.Info("DRY RUN: Would add firewall rule", zap.String("ip", ip))
+		n.logger.Info("DRY RUN: Would add nftables rule", zap.String("ip", ip))
 		return nil
 	}
 
-	n.logger.Info("Adding firewall rule", zap.String("ip", ip))
+	n.logger.Info("Adding nftables rule", zap.String("ip", ip))
 
 	// Check if table and chain exist (do not create)
 	if err := n.ensureTableAndChainExist(ctx); err != nil {
@@ -59,30 +59,30 @@ func (n *NFTablesManager) AddBlockRule(ctx context.Context, ip string) error {
 		return fmt.Errorf("failed to add blocking rule for IP %s: %w", ip, err)
 	}
 
-	n.logger.Info("Successfully added firewall rule", zap.String("ip", ip))
+	n.logger.Info("Successfully added nftables rule", zap.String("ip", ip))
 	return nil
 }
 
 // RemoveBlockRule removes a blocking rule for the specified IP
 func (n *NFTablesManager) RemoveBlockRule(ctx context.Context, ip string) error {
 	if n.dryRun {
-		n.logger.Info("DRY RUN: Would remove firewall rule", zap.String("ip", ip))
+		n.logger.Info("DRY RUN: Would remove nftables rule", zap.String("ip", ip))
 		return nil
 	}
 
-	n.logger.Info("Removing firewall rule", zap.String("ip", ip))
+	n.logger.Info("Removing nftables rule", zap.String("ip", ip))
 
 	// Delete the specific rule (nftables will find and remove the matching rule)
 	args := []string{"delete", "rule", n.family, n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
 	if err := n.executeCommand(ctx, args); err != nil {
 		// If the rule doesn't exist, nftables will return an error, but we can log and continue
-		n.logger.Warn("Failed to remove firewall rule (may not exist)",
+		n.logger.Warn("Failed to remove nftables rule (may not exist)",
 			zap.String("ip", ip),
 			zap.Error(err))
 		return nil // Don't return error to continue processing other IPs
 	}
 
-	n.logger.Info("Successfully removed firewall rule", zap.String("ip", ip))
+	n.logger.Info("Successfully removed nftables rule", zap.String("ip", ip))
 	return nil
 }
 

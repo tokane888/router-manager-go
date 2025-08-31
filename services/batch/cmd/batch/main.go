@@ -45,8 +45,8 @@ func main() {
 	// Initialize DNS resolver
 	dnsResolver := dns.NewDNSResolver(cfg.DNS, net.DefaultResolver, logger)
 
-	// Initialize firewall manager
-	nftablesManager := firewall.NewNFTablesManager(cfg.Firewall, logger)
+	// Initialize nftables manager
+	nftablesManager := firewall.NewNFTablesManager(cfg.NFTables, logger)
 
 	// Initialize use case
 	domainBlockerUseCase := usecase.NewDomainBlockerUseCase(
