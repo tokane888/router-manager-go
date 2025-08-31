@@ -11,8 +11,9 @@ import (
 
 // ProcessingConfig contains domain processing configuration
 type ProcessingConfig struct {
-	MaxConcurrency int // Configurable via environment variable, default 10
-	DomainTimeout  time.Duration
+	MaxConcurrency   int // Configurable via environment variable, default 10
+	DomainTimeout    time.Duration
+	MaxDNSIterations int // Configurable via environment variable, default 5
 }
 
 type DomainBlockerUseCase struct {
@@ -20,6 +21,7 @@ type DomainBlockerUseCase struct {
 	dnsResolver     repository.DNSResolver
 	firewallManager repository.FirewallManager
 	logger          *zap.Logger
+	config          ProcessingConfig
 }
 
 // NewDomainBlockerUseCase creates a new instance of DomainBlockerUseCase
@@ -28,12 +30,14 @@ func NewDomainBlockerUseCase(
 	dnsResolver repository.DNSResolver,
 	firewallManager repository.FirewallManager,
 	logger *zap.Logger,
+	config ProcessingConfig,
 ) *DomainBlockerUseCase {
 	return &DomainBlockerUseCase{
 		domainRepo:      domainRepo,
 		dnsResolver:     dnsResolver,
 		firewallManager: firewallManager,
 		logger:          logger,
+		config:          config,
 	}
 }
 
@@ -88,11 +92,12 @@ func (uc *DomainBlockerUseCase) processDomain(ctx context.Context, domain string
 }
 
 // discoverAllIPs discovers all IP addresses for a domain
+// 短時間でipが切り替わるサイトへの対応のため、30秒間隔で一定回数名前解決実行
 func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain string) ([]string, error) {
 	uc.logger.Info("Discovering IPs for domain", zap.String("domain", domain))
 
-	// Use the DNS resolver to get actual IP addresses
-	ips, err := uc.dnsResolver.ResolveIPs(ctx, domain)
+	// 1. 最初の名前解決を行い、解決結果をips変数に保持
+	initialIPs, err := uc.dnsResolver.ResolveIPs(ctx, domain)
 	if err != nil {
 		uc.logger.Error("Failed to resolve IPs for domain",
 			zap.String("domain", domain),
@@ -100,16 +105,88 @@ func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain strin
 		return nil, fmt.Errorf("DNS resolution failed for domain %s: %w", domain, err)
 	}
 
-	if len(ips) == 0 {
+	if len(initialIPs) == 0 {
 		uc.logger.Warn("No IPs discovered for domain", zap.String("domain", domain))
 		return []string{}, nil
 	}
 
-	uc.logger.Info("IP discovery completed",
-		zap.String("domain", domain),
-		zap.Strings("ips", ips))
+	// IPの重複を避けるためにmapを使用
+	ipsMap := make(map[string]bool)
+	for _, ip := range initialIPs {
+		ipsMap[ip] = true
+	}
 
-	return ips, nil
+	uc.logger.Info("Initial IP discovery completed",
+		zap.String("domain", domain),
+		zap.Strings("ips", initialIPs))
+
+	// 最大反復回数を設定（デフォルトは5回）
+	maxIterations := uc.config.MaxDNSIterations
+	if maxIterations <= 0 {
+		maxIterations = 5 // デフォルト値
+	}
+
+	for iteration := 1; iteration < maxIterations; iteration++ {
+		// 2. 30秒待機
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(30 * time.Second):
+		}
+
+		// 3. 名前解決を再度行う
+		currentIPs, err := uc.dnsResolver.ResolveIPs(ctx, domain)
+		if err != nil {
+			uc.logger.Warn("DNS resolution failed during iteration",
+				zap.String("domain", domain),
+				zap.Int("iteration", iteration),
+				zap.Error(err))
+			// エラーが発生した場合は現在のIPリストを返す
+			break
+		}
+
+		// 4. 新しいIPがあるかチェック
+		hasNewIPs := false
+		for _, ip := range currentIPs {
+			if !ipsMap[ip] {
+				// 5. 新しいIPがある場合は追加して次のループへ
+				ipsMap[ip] = true
+				hasNewIPs = true
+				uc.logger.Info("New IP discovered",
+					zap.String("domain", domain),
+					zap.String("new_ip", ip),
+					zap.Int("iteration", iteration))
+			}
+		}
+
+		// 4. 新しいIPがない場合は終了
+		if !hasNewIPs {
+			uc.logger.Info("No new IPs found, IP discovery stabilized",
+				zap.String("domain", domain),
+				zap.Int("iteration", iteration))
+			break
+		}
+	}
+
+	// 最大反復回数に達した場合のログ
+	if maxIterations > 1 {
+		uc.logger.Info("IP discovery completed",
+			zap.String("domain", domain),
+			zap.Int("max_iterations", maxIterations))
+	}
+
+	// 最終的なIPリストを作成
+	finalIPs := make([]string, 0, len(ipsMap))
+	for ip := range ipsMap {
+		finalIPs = append(finalIPs, ip)
+	}
+
+	uc.logger.Info("IP discovery completed with iterative resolution",
+		zap.String("domain", domain),
+		zap.Strings("final_ips", finalIPs),
+		zap.Int("total_ips", len(finalIPs)))
+
+	return finalIPs, nil
 }
 
 // updateFirewallRules updates nftables rules based on discovered IPs

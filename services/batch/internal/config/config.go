@@ -65,6 +65,11 @@ func LoadConfig(version string) (*Config, error) {
 		return nil, err
 	}
 
+	maxDNSIterations, err := getIntEnv("MAX_DNS_ITERATIONS", 5)
+	if err != nil {
+		return nil, err
+	}
+
 	// Load configuration from environment variables
 	logLevel := getEnv("LOG_LEVEL", "info")
 	logFormat := getEnv("LOG_FORMAT", "local")
@@ -89,8 +94,9 @@ func LoadConfig(version string) (*Config, error) {
 			Chain:          getEnv("NFTABLES_CHAIN", "OUTPUT"),
 		},
 		Processing: usecase.ProcessingConfig{
-			MaxConcurrency: maxConcurrency,
-			DomainTimeout:  domainTimeout,
+			MaxConcurrency:   maxConcurrency,
+			DomainTimeout:    domainTimeout,
+			MaxDNSIterations: maxDNSIterations,
 		},
 		Database: db.Config{
 			Host:     getEnv("DB_HOST", "localhost"),

@@ -54,6 +54,7 @@ func main() {
 		dnsResolver,
 		nftablesManager,
 		logger,
+		cfg.Processing,
 	)
 
 	logger.Info("Starting domain processing")
