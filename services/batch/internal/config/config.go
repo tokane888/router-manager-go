@@ -85,7 +85,7 @@ func LoadConfig(version string) (*Config, error) {
 			DryRun:         firewallDryRun,
 			CommandTimeout: firewallTimeout,
 			Table:          getEnv("FIREWALL_TABLE", "ip filter"),
-			Chain:          getEnv("FIREWALL_CHAIN", "OUTPUT"),
+			Chain:          getEnv("FIREWALL_CHAIN", "DOCKER-USER"),
 		},
 		Processing: usecase.ProcessingConfig{
 			MaxConcurrency: maxConcurrency,
