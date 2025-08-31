@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// NFTablesManager implements the NFTablesManager interface for nftables
+// NFTablesManager implements the FirewallManager interface for nftables
 
 // NFTablesManagerConfig contains nftables management configuration
 type NFTablesManagerConfig struct {

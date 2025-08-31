@@ -18,7 +18,7 @@ type ProcessingConfig struct {
 type DomainBlockerUseCase struct {
 	domainRepo      repository.DomainRepository
 	dnsResolver     repository.DNSResolver
-	nftablesManager repository.NFTablesManager
+	firewallManager repository.FirewallManager
 	logger          *zap.Logger
 }
 
@@ -26,13 +26,13 @@ type DomainBlockerUseCase struct {
 func NewDomainBlockerUseCase(
 	domainRepo repository.DomainRepository,
 	dnsResolver repository.DNSResolver,
-	nftablesManager repository.NFTablesManager,
+	firewallManager repository.FirewallManager,
 	logger *zap.Logger,
 ) *DomainBlockerUseCase {
 	return &DomainBlockerUseCase{
 		domainRepo:      domainRepo,
 		dnsResolver:     dnsResolver,
-		nftablesManager: nftablesManager,
+		firewallManager: firewallManager,
 		logger:          logger,
 	}
 }
@@ -194,7 +194,7 @@ func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain strin
 			zap.String("ip", ip))
 
 		// Add nftables rule first
-		if err := uc.nftablesManager.AddBlockRule(ctx, ip); err != nil {
+		if err := uc.firewallManager.AddBlockRule(ctx, ip); err != nil {
 			uc.logger.Warn("Failed to add nftables rule, continuing with others",
 				zap.String("domain", domain),
 				zap.String("ip", ip),
@@ -205,7 +205,7 @@ func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain strin
 		// Then add to database
 		if err := uc.domainRepo.CreateDomainIP(ctx, domain, ip); err != nil {
 			// If database insertion fails, try to remove the nftables rule
-			if rollbackErr := uc.nftablesManager.RemoveBlockRule(ctx, ip); rollbackErr != nil {
+			if rollbackErr := uc.firewallManager.RemoveBlockRule(ctx, ip); rollbackErr != nil {
 				uc.logger.Error("Failed to rollback nftables rule after database error",
 					zap.String("domain", domain),
 					zap.String("ip", ip),
@@ -240,7 +240,7 @@ func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain strin
 		}
 
 		// Then remove nftables rule
-		if err := uc.nftablesManager.RemoveBlockRule(ctx, ip); err != nil {
+		if err := uc.firewallManager.RemoveBlockRule(ctx, ip); err != nil {
 			uc.logger.Warn("Failed to remove nftables rule, but database entry was deleted",
 				zap.String("domain", domain),
 				zap.String("ip", ip),
