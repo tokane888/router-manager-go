@@ -33,3 +33,8 @@ if ! claude mcp list 2>/dev/null | grep -q "serena"; then
 else
     echo "MCP server serena already exists, skipping..."
 fi
+
+# 開発用にnft table追加
+sudo nft add table ip filter
+# 後でruleを追加する先のchain追加。ruleはダミー
+sudo nft add chain ip filter OUTPUT { type filter hook output priority 0\; policy accept\; }
