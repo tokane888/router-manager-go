@@ -214,7 +214,6 @@ func (uc *DomainBlockerUseCase) updateFirewallRules(ctx context.Context, domain 
 }
 
 // getExistingIPs retrieves existing IPs for a domain
-// nolint: unused
 func (uc *DomainBlockerUseCase) getExistingIPs(ctx context.Context, domain string) ([]string, error) {
 	domainIPs, err := uc.domainRepo.GetDomainIPs(ctx, domain)
 	if err != nil {
@@ -229,7 +228,6 @@ func (uc *DomainBlockerUseCase) getExistingIPs(ctx context.Context, domain strin
 }
 
 // calculateIPChanges determines which IPs need to be added or removed
-// nolint: unused
 func (uc *DomainBlockerUseCase) calculateIPChanges(existingIPs, newIPs []string) ([]string, []string) {
 	// Convert to maps for O(1) lookup
 	existingIPsMap := make(map[string]bool)
@@ -262,7 +260,6 @@ func (uc *DomainBlockerUseCase) calculateIPChanges(existingIPs, newIPs []string)
 }
 
 // applyIPChanges applies the calculated IP changes to the database
-// nolint: unused
 func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain string, ipsToAdd, ipsToRemove []string) error {
 	// Add new IPs
 	for _, ip := range ipsToAdd {
