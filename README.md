@@ -19,6 +19,7 @@
     - 名前解決結果と登録されているipを比較
       - 名前解決結果にのみ含まれるipがあれば、当該ipへのpacketのforwardをblock
       - DBに登録済みだが名前解決結果に含まれないipがあれば、当該ipへのpacketのforwardのblockを解除
+      - blockの永続化は行わない(OS再起動で元に戻る)
 
 ## 開発環境構築手順
 
