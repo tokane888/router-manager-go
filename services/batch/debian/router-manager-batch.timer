@@ -1,6 +1,5 @@
 [Unit]
 Description=Run Router Manager Batch Service every hour
-Documentation=https://github.com/yourusername/router-manager-go
 Requires=router-manager-batch.service
 
 [Timer]
