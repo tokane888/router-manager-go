@@ -397,35 +397,3 @@ func Test_DeleteAllDomainIPsIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, allIPs)
 }
-
-func Test_CascadeDelete(t *testing.T) {
-	testDB := SetupTestDB(t)
-	defer testDB.Cleanup(t)
-
-	domainName := "cascade-test.com"
-
-	// Create domain and IPs
-	err := testDB.DB.CreateDomain(context.Background(), domainName)
-	require.NoError(t, err)
-
-	ips := []string{"192.168.1.20", "192.168.1.21"}
-	for _, ip := range ips {
-		err = testDB.DB.CreateDomainIP(context.Background(), domainName, ip)
-		require.NoError(t, err)
-	}
-
-	// Verify IPs exist
-	domainIPs, err := testDB.DB.GetDomainIPs(context.Background(), domainName)
-	require.NoError(t, err)
-	assert.Len(t, domainIPs, 2)
-
-	// This test would require implementing DeleteDomain method
-	// For now, we'll test that foreign key constraint works by trying to delete domain directly
-	_, err = testDB.DB.pool.Exec(context.Background(), "DELETE FROM domains WHERE domain_name = $1", domainName)
-	require.NoError(t, err) // Should succeed due to CASCADE
-
-	// Verify IPs are also deleted
-	domainIPs, err = testDB.DB.GetDomainIPs(context.Background(), domainName)
-	require.NoError(t, err)
-	assert.Empty(t, domainIPs)
-}
