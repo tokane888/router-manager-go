@@ -20,6 +20,7 @@ type DomainBlockerUseCase struct {
 	domainRepo      repository.DomainRepository
 	dnsResolver     repository.DNSResolver
 	firewallManager repository.FirewallManager
+	rebootDetector  repository.RebootDetector
 	logger          *zap.Logger
 	config          ProcessingConfig
 }
@@ -29,6 +30,7 @@ func NewDomainBlockerUseCase(
 	domainRepo repository.DomainRepository,
 	dnsResolver repository.DNSResolver,
 	firewallManager repository.FirewallManager,
+	rebootDetector repository.RebootDetector,
 	logger *zap.Logger,
 	config ProcessingConfig,
 ) *DomainBlockerUseCase {
@@ -38,11 +40,27 @@ func NewDomainBlockerUseCase(
 		firewallManager: firewallManager,
 		logger:          logger,
 		config:          config,
+		rebootDetector:  rebootDetector,
 	}
 }
 
 // ProcessAllDomains processes all domains from the database
 func (uc *DomainBlockerUseCase) ProcessAllDomains(ctx context.Context) error {
+	// Check if system has rebooted and cleanup is needed
+	cleanupNeeded, err := uc.rebootDetector.CheckAndHandleReboot(ctx)
+	if err != nil {
+		uc.logger.Error("Failed to check reboot status", zap.Error(err))
+		// Continue processing even if reboot detection fails
+	} else if cleanupNeeded {
+		uc.logger.Info("System reboot detected - cleaning up domain IPs table")
+		if err := uc.domainRepo.DeleteAllDomainIPs(ctx); err != nil {
+			uc.logger.Error("Failed to cleanup domain IPs table after reboot", zap.Error(err))
+			// Continue processing even if cleanup fails
+		} else {
+			uc.logger.Info("Successfully cleaned up domain IPs table after reboot")
+		}
+	}
+
 	// Retrieve all domains from the database
 	domains, err := uc.domainRepo.GetAllDomains(ctx)
 	if err != nil {

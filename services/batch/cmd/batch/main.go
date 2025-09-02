@@ -12,6 +12,7 @@ import (
 	"github.com/tokane888/router-manager-go/services/batch/internal/config"
 	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/dns"
 	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/firewall"
+	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/system"
 	"github.com/tokane888/router-manager-go/services/batch/internal/usecase"
 	"go.uber.org/zap"
 )
@@ -48,11 +49,15 @@ func main() {
 	// Initialize nftables manager
 	nftablesManager := firewall.NewNFTablesManager(cfg.NFTables, logger)
 
+	// Initialize reboot detector
+	rebootDetector := system.NewRebootDetector(logger)
+
 	// Initialize use case
 	domainBlockerUseCase := usecase.NewDomainBlockerUseCase(
 		database,
 		dnsResolver,
 		nftablesManager,
+		rebootDetector,
 		logger,
 		cfg.Processing,
 	)
