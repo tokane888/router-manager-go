@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateDomain(t *testing.T) {
+func Test_CreateDomain(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -68,7 +68,7 @@ func TestCreateDomain(t *testing.T) {
 	}
 }
 
-func TestGetAllDomains(t *testing.T) {
+func Test_GetAllDomains(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -97,7 +97,7 @@ func TestGetAllDomains(t *testing.T) {
 	}
 }
 
-func TestCreateDomainIP(t *testing.T) {
+func Test_CreateDomainIP(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -150,7 +150,7 @@ func TestCreateDomainIP(t *testing.T) {
 	}
 }
 
-func TestGetDomainIPs(t *testing.T) {
+func Test_GetDomainIPs(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -191,7 +191,7 @@ func TestGetDomainIPs(t *testing.T) {
 	assert.Empty(t, domainIPs)
 }
 
-func TestDeleteDomainIP(t *testing.T) {
+func Test_DeleteDomainIP(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -224,7 +224,7 @@ func TestDeleteDomainIP(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestIntegrationWorkflow(t *testing.T) {
+func Test_IntegrationWorkflow(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -265,7 +265,7 @@ func TestIntegrationWorkflow(t *testing.T) {
 	assert.NotContains(t, remainingIPs, "192.168.1.10")
 }
 
-func TestDeleteAllDomainIPs(t *testing.T) {
+func Test_DeleteAllDomainIPs(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -367,7 +367,7 @@ func TestDeleteAllDomainIPs(t *testing.T) {
 	}
 }
 
-func TestDeleteAllDomainIPsIdempotent(t *testing.T) {
+func Test_DeleteAllDomainIPsIdempotent(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -398,7 +398,7 @@ func TestDeleteAllDomainIPsIdempotent(t *testing.T) {
 	assert.Empty(t, allIPs)
 }
 
-func TestCascadeDelete(t *testing.T) {
+func Test_CascadeDelete(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
