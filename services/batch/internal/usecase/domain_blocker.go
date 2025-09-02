@@ -216,17 +216,16 @@ func (uc *DomainBlockerUseCase) updateFirewallRules(ctx context.Context, domain 
 	}
 
 	// Calculate changes
-	ipsToAdd, ipsToRemove := uc.calculateIPChanges(existingIPs, newIPs)
+	ipsToAdd := uc.calculateIPChanges(existingIPs, newIPs)
 
-	// Apply changes
-	if err := uc.applyIPChanges(ctx, domain, ipsToAdd, ipsToRemove); err != nil {
-		return fmt.Errorf("failed to apply IP changes for domain %s: %w", domain, err)
+	// Add new IPs
+	for _, ip := range ipsToAdd {
+		uc.addIP(ctx, domain, ip)
 	}
 
 	uc.logger.Info("Completed nftables rules update",
 		zap.String("domain", domain),
-		zap.Int("added", len(ipsToAdd)),
-		zap.Int("removed", len(ipsToRemove)))
+		zap.Int("added", len(ipsToAdd)))
 
 	return nil
 }
@@ -245,52 +244,25 @@ func (uc *DomainBlockerUseCase) getExistingIPs(ctx context.Context, domain strin
 	return existingIPs, nil
 }
 
-// calculateIPChanges determines which IPs need to be added or removed
-func (uc *DomainBlockerUseCase) calculateIPChanges(existingIPs, newIPs []string) ([]string, []string) {
-	// Convert to maps for O(1) lookup
+// calculateIPChanges determines which IPs need to be added
+func (uc *DomainBlockerUseCase) calculateIPChanges(existingIPs, newIPs []string) []string {
+	// Convert to map for O(1) lookup
 	existingIPsMap := make(map[string]bool)
 	for _, ip := range existingIPs {
 		existingIPsMap[ip] = true
 	}
 
-	newIPsMap := make(map[string]bool)
-	for _, ip := range newIPs {
-		newIPsMap[ip] = true
-	}
-
 	// Find IPs to add (exist in newIPs but not in existing)
 	var ipsToAdd []string
-	for ip := range newIPsMap {
+	for _, ip := range newIPs {
 		if !existingIPsMap[ip] {
 			ipsToAdd = append(ipsToAdd, ip)
 		}
 	}
 
-	// Find IPs to remove (exist in existing but not in newIPs)
-	var ipsToRemove []string
-	for ip := range existingIPsMap {
-		if !newIPsMap[ip] {
-			ipsToRemove = append(ipsToRemove, ip)
-		}
-	}
-
-	return ipsToAdd, ipsToRemove
+	return ipsToAdd
 }
 
-// applyIPChanges applies the calculated IP changes to the database
-func (uc *DomainBlockerUseCase) applyIPChanges(ctx context.Context, domain string, ipsToAdd, ipsToRemove []string) error {
-	// Add new IPs
-	for _, ip := range ipsToAdd {
-		uc.addIP(ctx, domain, ip)
-	}
-
-	// Remove obsolete IPs
-	for _, ip := range ipsToRemove {
-		uc.removeIP(ctx, domain, ip)
-	}
-
-	return nil
-}
 
 // addIP adds a new IP address to both nftables and database
 func (uc *DomainBlockerUseCase) addIP(ctx context.Context, domain, ip string) {
@@ -329,31 +301,3 @@ func (uc *DomainBlockerUseCase) addIP(ctx context.Context, domain, ip string) {
 		zap.String("ip", ip))
 }
 
-// removeIP removes an IP address from both database and nftables
-func (uc *DomainBlockerUseCase) removeIP(ctx context.Context, domain, ip string) {
-	uc.logger.Info("Removing nftables rule and domain IP",
-		zap.String("domain", domain),
-		zap.String("ip", ip))
-
-	// Remove from database first
-	if err := uc.domainRepo.DeleteDomainIP(ctx, domain, ip); err != nil {
-		uc.logger.Warn("Failed to delete domain IP, continuing with others",
-			zap.String("domain", domain),
-			zap.String("ip", ip),
-			zap.Error(err))
-		return
-	}
-
-	// Then remove nftables rule
-	if err := uc.firewallManager.RemoveBlockRule(ctx, ip); err != nil {
-		uc.logger.Warn("Failed to remove nftables rule, but database entry was deleted",
-			zap.String("domain", domain),
-			zap.String("ip", ip),
-			zap.Error(err))
-		return
-	}
-
-	uc.logger.Info("Successfully removed nftables rule and domain IP",
-		zap.String("domain", domain),
-		zap.String("ip", ip))
-}

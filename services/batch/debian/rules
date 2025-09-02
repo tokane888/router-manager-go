@@ -1,0 +1,36 @@
+#!/usr/bin/make -f
+
+export DH_VERBOSE = 1
+export CGO_ENABLED = 0
+export GOOS = linux
+export GOARCH = arm64
+
+%:
+	dh $@ --buildsystem=golang --with=golang
+
+override_dh_auto_build:
+	cd ../.. && go build -o services/batch/debian/router-manager-batch services/batch/cmd/batch/main.go
+
+override_dh_auto_install:
+	dh_auto_install
+	# Install binary
+	install -D -m 0755 debian/router-manager-batch debian/router-manager-batch/usr/local/bin/router-manager-batch
+	# Install systemd units
+	install -D -m 0644 debian/router-manager-batch.service debian/router-manager-batch/lib/systemd/system/router-manager-batch.service
+	install -D -m 0644 debian/router-manager-batch.timer debian/router-manager-batch/lib/systemd/system/router-manager-batch.timer
+	# Install default config
+	install -D -m 0600 debian/router-manager-batch.default debian/router-manager-batch/etc/default/router-manager-batch
+
+override_dh_installsystemd:
+	dh_installsystemd --name=router-manager-batch --no-start router-manager-batch.timer
+	dh_installsystemd --name=router-manager-batch --no-start router-manager-batch.service
+
+override_dh_fixperms:
+	dh_fixperms
+	chmod 0600 debian/router-manager-batch/etc/default/router-manager-batch
+
+override_dh_strip:
+	# Don't strip Go binaries
+
+override_dh_dwz:
+	# Skip dwz for Go binaries
