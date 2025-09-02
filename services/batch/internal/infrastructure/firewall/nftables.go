@@ -53,13 +53,14 @@ func (n *NFTablesManager) AddBlockRule(ctx context.Context, ip string) error {
 		return fmt.Errorf("failed to check table and chain: %w", err)
 	}
 
-	// Add the blocking rule
-	args := []string{"add", "rule", n.family, n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
+	// Insert the blocking rule at the beginning of the chain for higher priority
+	// Using "insert" instead of "add" to place the rule at the beginning
+	args := []string{"insert", "rule", n.family, n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
 	if err := n.executeCommand(ctx, args); err != nil {
-		return fmt.Errorf("failed to add blocking rule for IP %s: %w", ip, err)
+		return fmt.Errorf("failed to insert blocking rule for IP %s: %w", ip, err)
 	}
 
-	n.logger.Info("Successfully added nftables rule", zap.String("ip", ip))
+	n.logger.Info("Successfully inserted nftables rule at the beginning of chain", zap.String("ip", ip))
 	return nil
 }
 
