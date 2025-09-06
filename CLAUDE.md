@@ -146,13 +146,16 @@ lefthook run pre-push
 ## ソース編集時の注意点
 
 - 対応するソースが残っている状態で日本語のコメントのみを消去しない
-- *.goの編集が一通り完了した後、一度ビルドが成功することを確認する
-- nftablesやdnsmasqの操作を含むコードは、テスト環境で動作確認を行う
-- ファイルを一通り編集した後、下記のようにgofumptで整形
-  - `gofumpt -w .`
+- github issueで修正を行い`git commit`する場合、timezoneはJSTを使用
 
 ## 動作確認
 
+- 下記を実行して整形
+  - `gofumpt -w .`
+- 下記を実行し、spell check
+  - `cspell .`
+- build成功を確認
+- `go test`実行
 - 編集対象のプロセスのgo.modがあるディレクトリで`golangci-lint run ./...`を実行し、警告が出ないことを確認
 - publicメソッドは非常に単純なものを除いて基本的に単体テスト実装
 

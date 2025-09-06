@@ -7,6 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tokane888/router-manager-go/pkg/logger"
+	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/dns"
+	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/firewall"
+	"github.com/tokane888/router-manager-go/services/batch/internal/usecase"
 )
 
 // TestLoadConfig is removed as it requires extensive environment setup
@@ -21,17 +24,18 @@ func validConfig() *Config {
 			Level:  "info",
 			Format: "local",
 		},
-		Processing: ProcessingConfig{
+		Processing: usecase.ProcessingConfig{
 			MaxConcurrency: 10,
 			DomainTimeout:  30 * time.Second,
 		},
-		DNS: DNSConfig{
+		DNS: dns.DNSConfig{
 			Timeout:       5 * time.Second,
 			RetryAttempts: 3,
 		},
-		Firewall: FirewallConfig{
+		NFTables: firewall.NFTablesManagerConfig{
 			CommandTimeout: 10 * time.Second,
-			Table:          "ip filter",
+			Family:         "ip",
+			Table:          "filter",
 			Chain:          "OUTPUT",
 		},
 	}
@@ -151,40 +155,52 @@ func Test_validateConfig(t *testing.T) {
 			errContains: "DNS retry attempts too high",
 		},
 		{
-			name: "invalid firewall command timeout",
+			name: "invalid nftables command timeout",
 			args: args{
 				cfg: func() *Config {
 					cfg := validConfig()
-					cfg.Firewall.CommandTimeout = 0
+					cfg.NFTables.CommandTimeout = 0
 					return cfg
 				}(),
 			},
 			wantErr:     true,
-			errContains: "firewall command timeout must be positive",
+			errContains: "nftables command timeout must be positive",
 		},
 		{
-			name: "empty firewall table",
+			name: "empty nftables family",
 			args: args{
 				cfg: func() *Config {
 					cfg := validConfig()
-					cfg.Firewall.Table = ""
+					cfg.NFTables.Family = ""
 					return cfg
 				}(),
 			},
 			wantErr:     true,
-			errContains: "firewall table cannot be empty",
+			errContains: "nftables family cannot be empty",
 		},
 		{
-			name: "empty firewall chain",
+			name: "empty nftables table",
 			args: args{
 				cfg: func() *Config {
 					cfg := validConfig()
-					cfg.Firewall.Chain = ""
+					cfg.NFTables.Table = ""
 					return cfg
 				}(),
 			},
 			wantErr:     true,
-			errContains: "firewall chain cannot be empty",
+			errContains: "nftables table cannot be empty",
+		},
+		{
+			name: "empty nftables chain",
+			args: args{
+				cfg: func() *Config {
+					cfg := validConfig()
+					cfg.NFTables.Chain = ""
+					return cfg
+				}(),
+			},
+			wantErr:     true,
+			errContains: "nftables chain cannot be empty",
 		},
 		{
 			name: "invalid domain timeout",

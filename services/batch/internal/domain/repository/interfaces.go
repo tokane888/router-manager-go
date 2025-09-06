@@ -17,6 +17,11 @@ type FirewallManager interface {
 	RemoveBlockRule(ctx context.Context, ip string) error
 }
 
+// RebootDetector defines the interface for reboot detection operations
+type RebootDetector interface {
+	CheckAndHandleReboot(ctx context.Context) (bool, error)
+}
+
 // DomainRepository defines the interface for domain data operations
 type DomainRepository interface {
 	// Domain operations
@@ -28,4 +33,5 @@ type DomainRepository interface {
 	CreateDomainIP(ctx context.Context, domainName, ipAddress string) error
 	DeleteDomainIP(ctx context.Context, domainName, ipAddress string) error
 	GetAllDomainIPs(ctx context.Context) ([]db.DomainIP, error)
+	DeleteAllDomainIPs(ctx context.Context) error
 }

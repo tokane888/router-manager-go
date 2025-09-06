@@ -1,0 +1,14 @@
+[Unit]
+Description=Run Router Manager Batch Service every hour
+Requires=router-manager-batch.service
+
+[Timer]
+# Run every hour at minute 0
+OnCalendar=hourly
+# Run immediately if the system was powered down when the timer should have run
+Persistent=true
+# Randomize start time by up to 30 seconds to avoid load spikes
+RandomizedDelaySec=30
+
+[Install]
+WantedBy=timers.target

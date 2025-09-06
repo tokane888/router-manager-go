@@ -10,6 +10,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/tokane888/router-manager-go/pkg/db"
 	"github.com/tokane888/router-manager-go/pkg/logger"
+	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/dns"
+	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/firewall"
+	"github.com/tokane888/router-manager-go/services/batch/internal/usecase"
 )
 
 // Config represents the application configuration
@@ -17,29 +20,9 @@ type Config struct {
 	Env        string
 	Logger     logger.LoggerConfig
 	Database   db.Config
-	DNS        DNSConfig
-	Firewall   FirewallConfig
-	Processing ProcessingConfig
-}
-
-// DNSConfig contains DNS resolution configuration
-type DNSConfig struct {
-	Timeout       time.Duration
-	RetryAttempts int
-}
-
-// FirewallConfig contains firewall management configuration
-type FirewallConfig struct {
-	DryRun         bool
-	CommandTimeout time.Duration
-	Table          string
-	Chain          string
-}
-
-// ProcessingConfig contains domain processing configuration
-type ProcessingConfig struct {
-	MaxConcurrency int // Configurable via environment variable, default 10
-	DomainTimeout  time.Duration
+	DNS        dns.DNSConfig
+	NFTables   firewall.NFTablesManagerConfig
+	Processing usecase.ProcessingConfig
 }
 
 // LoadConfig loads configuration from environment variables and defaults
@@ -67,17 +50,22 @@ func LoadConfig(version string) (*Config, error) {
 		return nil, err
 	}
 
-	firewallDryRun, err := getBoolEnv("FIREWALL_DRY_RUN", true)
+	nftablesDryRun, err := getBoolEnv("NFTABLES_DRY_RUN", true)
 	if err != nil {
 		return nil, err
 	}
 
-	firewallTimeout, err := getDurationEnv("FIREWALL_COMMAND_TIMEOUT", 10*time.Second)
+	nftablesTimeout, err := getDurationEnv("NFTABLES_COMMAND_TIMEOUT", 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
 
 	domainTimeout, err := getDurationEnv("DOMAIN_TIMEOUT", 30*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
+	maxDNSIterations, err := getIntEnv("MAX_DNS_ITERATIONS", 5)
 	if err != nil {
 		return nil, err
 	}
@@ -94,21 +82,30 @@ func LoadConfig(version string) (*Config, error) {
 			Level:      logLevel,
 			Format:     logFormat,
 		},
-		DNS: DNSConfig{
+		DNS: dns.DNSConfig{
 			Timeout:       dnsTimeout,
 			RetryAttempts: dnsRetryAttempts,
 		},
-		Firewall: FirewallConfig{
-			DryRun:         firewallDryRun,
-			CommandTimeout: firewallTimeout,
-			Table:          getEnv("FIREWALL_TABLE", "ip filter"),
-			Chain:          getEnv("FIREWALL_CHAIN", "OUTPUT"),
+		NFTables: firewall.NFTablesManagerConfig{
+			DryRun:         nftablesDryRun,
+			CommandTimeout: nftablesTimeout,
+			Family:         getEnv("NFTABLES_FAMILY", "ip"),
+			Table:          getEnv("NFTABLES_TABLE", "filter"),
+			Chain:          getEnv("NFTABLES_CHAIN", "OUTPUT"),
 		},
-		Processing: ProcessingConfig{
-			MaxConcurrency: maxConcurrency,
-			DomainTimeout:  domainTimeout,
+		Processing: usecase.ProcessingConfig{
+			MaxConcurrency:   maxConcurrency,
+			DomainTimeout:    domainTimeout,
+			MaxDNSIterations: maxDNSIterations,
 		},
-		// TODO: Database config will be implemented in subsequent tasks
+		Database: db.Config{
+			Host:     getEnv("DB_HOST", "localhost"),
+			Port:     getEnv("DB_PORT", "5432"),
+			DBName:   getEnv("DB_NAME", "router_manager"),
+			User:     getEnv("DB_USER", "postgres"),
+			Password: getEnv("DB_PASSWORD", ""),
+			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
+		},
 	}
 
 	// Validate configuration
@@ -198,15 +195,18 @@ func validateConfig(cfg *Config) error {
 		return fmt.Errorf("DNS retry attempts too high: %d (maximum: 10)", cfg.DNS.RetryAttempts)
 	}
 
-	// Validate firewall configuration
-	if cfg.Firewall.CommandTimeout <= 0 {
-		return fmt.Errorf("firewall command timeout must be positive, got: %v", cfg.Firewall.CommandTimeout)
+	// Validate nftables configuration
+	if cfg.NFTables.CommandTimeout <= 0 {
+		return fmt.Errorf("nftables command timeout must be positive, got: %v", cfg.NFTables.CommandTimeout)
 	}
-	if cfg.Firewall.Table == "" {
-		return errors.New("firewall table cannot be empty")
+	if cfg.NFTables.Family == "" {
+		return errors.New("nftables family cannot be empty")
 	}
-	if cfg.Firewall.Chain == "" {
-		return errors.New("firewall chain cannot be empty")
+	if cfg.NFTables.Table == "" {
+		return errors.New("nftables table cannot be empty")
+	}
+	if cfg.NFTables.Chain == "" {
+		return errors.New("nftables chain cannot be empty")
 	}
 
 	// Validate domain timeout

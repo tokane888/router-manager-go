@@ -18,6 +18,9 @@ services:
       postgres:
         condition: service_healthy
     command: sleep infinity
+    cap_add:
+      - NET_ADMIN # nftコマンド実行に必要
+      - NET_RAW # raw socketアクセス用
 
   postgres:
     image: postgres:16-alpine

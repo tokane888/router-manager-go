@@ -1,0 +1,27 @@
+Source: router-manager-batch
+Section: net
+Priority: optional
+Maintainer: Your Name <your.email@example.com>
+Build-Depends: debhelper-compat (= 13),
+               golang-go (>= 1.24),
+               dh-golang
+Standards-Version: 4.6.0
+Homepage: https://github.com/yourusername/router-manager-go
+
+Package: router-manager-batch
+Version: 0.1.0
+Architecture: any
+Depends: ${shlibs:Depends},
+         ${misc:Depends},
+         docker.io | docker-ce,
+         docker-compose,
+         nftables,
+         dnsmasq,
+         systemd
+Description: Router Manager Batch Service
+ A batch service that periodically resolves domain names and updates
+ nftables rules for domain-based packet filtering on routers.
+ .
+ This service works in conjunction with dnsmasq and nftables to provide
+ domain blocking functionality by resolving blocked domains to IP addresses
+ and applying firewall rules accordingly.

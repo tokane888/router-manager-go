@@ -1,0 +1,8 @@
+router-manager-batch (0.1.0-1) unstable; urgency=low
+
+  * Initial release
+  * Batch service for domain resolution and nftables management
+  * Systemd timer for hourly execution
+  * Support for PostgreSQL backend
+
+ -- Your Name <your.email@example.com>  Mon, 02 Sep 2025 12:00:00 +0900

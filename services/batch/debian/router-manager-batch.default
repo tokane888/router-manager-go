@@ -1,0 +1,44 @@
+# Configuration for router-manager-batch service
+# This file is sourced by the systemd service
+
+# Environment
+ENV=production
+
+# Database Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=router_manager
+DB_PASSWORD=your_secure_password_here
+DB_NAME=router_manager
+DB_SSLMODE=disable
+
+# Logging
+LOG_LEVEL=info
+LOG_OUTPUT=json
+
+# Batch Processing
+BATCH_INTERVAL=3600
+BATCH_MAX_RETRIES=3
+BATCH_TIMEOUT=300
+
+# DNS Resolution
+DNS_RESOLVER_TIMEOUT=5
+DNS_RESOLVER_SERVERS=8.8.8.8,8.8.4.4
+
+# NFTables Configuration
+NFTABLES_TABLE=filter
+NFTABLES_CHAIN=forward
+NFTABLES_SET_NAME=blocked_ips
+NFTABLES_DRY_RUN=false
+
+# DNSMasq Configuration
+DNSMASQ_CONFIG_DIR=/etc/dnsmasq.d
+DNSMASQ_RELOAD_COMMAND="systemctl reload dnsmasq"
+
+# Performance Tuning
+MAX_CONCURRENT_DNS_QUERIES=50
+MAX_CONCURRENT_NFTABLES_OPERATIONS=10
+
+# Monitoring
+ENABLE_METRICS=false
+METRICS_PORT=9090

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateDomain(t *testing.T) {
+func Test_CreateDomain(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -68,7 +68,7 @@ func TestCreateDomain(t *testing.T) {
 	}
 }
 
-func TestGetAllDomains(t *testing.T) {
+func Test_GetAllDomains(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -97,7 +97,7 @@ func TestGetAllDomains(t *testing.T) {
 	}
 }
 
-func TestCreateDomainIP(t *testing.T) {
+func Test_CreateDomainIP(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -150,7 +150,7 @@ func TestCreateDomainIP(t *testing.T) {
 	}
 }
 
-func TestGetDomainIPs(t *testing.T) {
+func Test_GetDomainIPs(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -191,7 +191,7 @@ func TestGetDomainIPs(t *testing.T) {
 	assert.Empty(t, domainIPs)
 }
 
-func TestDeleteDomainIP(t *testing.T) {
+func Test_DeleteDomainIP(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -224,7 +224,7 @@ func TestDeleteDomainIP(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 }
 
-func TestIntegrationWorkflow(t *testing.T) {
+func Test_IntegrationWorkflow(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
@@ -265,34 +265,135 @@ func TestIntegrationWorkflow(t *testing.T) {
 	assert.NotContains(t, remainingIPs, "192.168.1.10")
 }
 
-func TestCascadeDelete(t *testing.T) {
+func Test_DeleteAllDomainIPs(t *testing.T) {
 	testDB := SetupTestDB(t)
 	defer testDB.Cleanup(t)
 
-	domainName := "cascade-test.com"
-
-	// Create domain and IPs
-	err := testDB.DB.CreateDomain(context.Background(), domainName)
-	require.NoError(t, err)
-
-	ips := []string{"192.168.1.20", "192.168.1.21"}
-	for _, ip := range ips {
-		err = testDB.DB.CreateDomainIP(context.Background(), domainName, ip)
-		require.NoError(t, err)
+	tests := []struct {
+		name          string
+		setupDomains  []string
+		setupIPs      map[string][]string // domain -> IPs
+		expectError   bool
+		expectedCount int64 // Expected rows affected
+	}{
+		{
+			name:          "delete from empty table",
+			setupDomains:  []string{},
+			setupIPs:      map[string][]string{},
+			expectError:   false,
+			expectedCount: 0,
+		},
+		{
+			name:         "delete single domain with single IP",
+			setupDomains: []string{"example.com"},
+			setupIPs: map[string][]string{
+				"example.com": {"192.168.1.1"},
+			},
+			expectError:   false,
+			expectedCount: 1,
+		},
+		{
+			name:         "delete multiple domains with multiple IPs",
+			setupDomains: []string{"example.com", "test.com", "hoge.com"},
+			setupIPs: map[string][]string{
+				"example.com": {"192.168.1.1", "192.168.1.2"},
+				"test.com":    {"10.0.0.1", "10.0.0.2", "10.0.0.3"},
+				"hoge.com":    {"8.8.8.8"},
+			},
+			expectError:   false,
+			expectedCount: 6,
+		},
 	}
 
-	// Verify IPs exist
-	domainIPs, err := testDB.DB.GetDomainIPs(context.Background(), domainName)
-	require.NoError(t, err)
-	assert.Len(t, domainIPs, 2)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear tables before each test case
+			_, err := testDB.DB.pool.Exec(context.Background(), "TRUNCATE TABLE domain_ips, domains CASCADE")
+			require.NoError(t, err)
 
-	// This test would require implementing DeleteDomain method
-	// For now, we'll test that foreign key constraint works by trying to delete domain directly
-	_, err = testDB.DB.pool.Exec(context.Background(), "DELETE FROM domains WHERE domain_name = $1", domainName)
-	require.NoError(t, err) // Should succeed due to CASCADE
+			// Setup test data
+			for _, domain := range tt.setupDomains {
+				createErr := testDB.DB.CreateDomain(context.Background(), domain)
+				require.NoError(t, createErr)
+			}
 
-	// Verify IPs are also deleted
-	domainIPs, err = testDB.DB.GetDomainIPs(context.Background(), domainName)
+			totalInsertedIPs := int64(0)
+			for domain, ips := range tt.setupIPs {
+				for _, ip := range ips {
+					createIPErr := testDB.DB.CreateDomainIP(context.Background(), domain, ip)
+					require.NoError(t, createIPErr)
+					totalInsertedIPs++
+				}
+			}
+
+			// Verify setup - check that IPs were inserted
+			if totalInsertedIPs > 0 {
+				allIPs, getErr := testDB.DB.GetAllDomainIPs(context.Background())
+				require.NoError(t, getErr)
+				assert.Len(t, allIPs, int(totalInsertedIPs))
+			}
+
+			// Execute DeleteAllDomainIPs
+			err = testDB.DB.DeleteAllDomainIPs(context.Background())
+
+			// Check error expectation
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+
+			// Verify all domain IPs are deleted
+			if !tt.expectError {
+				allIPs, err := testDB.DB.GetAllDomainIPs(context.Background())
+				require.NoError(t, err)
+				assert.Empty(t, allIPs, "All domain IPs should be deleted")
+
+				// Verify domains still exist (should not be affected)
+				for _, domain := range tt.setupDomains {
+					domains, err := testDB.DB.GetAllDomains(context.Background())
+					require.NoError(t, err)
+					found := false
+					for _, d := range domains {
+						if d.DomainName == domain {
+							found = true
+							break
+						}
+					}
+					assert.True(t, found, "Domain %s should still exist", domain)
+				}
+			}
+		})
+	}
+}
+
+func Test_DeleteAllDomainIPsIdempotent(t *testing.T) {
+	testDB := SetupTestDB(t)
+	defer testDB.Cleanup(t)
+
+	domainName := "idempotent-test.com"
+
+	// Create domain and IP
+	err := testDB.DB.CreateDomain(context.Background(), domainName)
 	require.NoError(t, err)
-	assert.Empty(t, domainIPs)
+	err = testDB.DB.CreateDomainIP(context.Background(), domainName, "192.168.1.1")
+	require.NoError(t, err)
+
+	// First deletion
+	err = testDB.DB.DeleteAllDomainIPs(context.Background())
+	assert.NoError(t, err)
+
+	// Verify table is empty
+	allIPs, err := testDB.DB.GetAllDomainIPs(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, allIPs)
+
+	// Second deletion on empty table - should not error
+	err = testDB.DB.DeleteAllDomainIPs(context.Background())
+	assert.NoError(t, err, "DeleteAllDomainIPs should be idempotent")
+
+	// Table should still be empty
+	allIPs, err = testDB.DB.GetAllDomainIPs(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, allIPs)
 }
