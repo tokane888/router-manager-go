@@ -263,7 +263,6 @@ func (uc *DomainBlockerUseCase) calculateIPChanges(existingIPs, newIPs []string)
 	return ipsToAdd
 }
 
-
 // addIP adds a new IP address to both nftables and database
 func (uc *DomainBlockerUseCase) addIP(ctx context.Context, domain, ip string) {
 	uc.logger.Info("Adding nftables rule and domain IP",
@@ -300,4 +299,3 @@ func (uc *DomainBlockerUseCase) addIP(ctx context.Context, domain, ip string) {
 		zap.String("domain", domain),
 		zap.String("ip", ip))
 }
-
