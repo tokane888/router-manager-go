@@ -313,23 +313,23 @@ func Test_DeleteAllDomainIPs(t *testing.T) {
 
 			// Setup test data
 			for _, domain := range tt.setupDomains {
-				err := testDB.DB.CreateDomain(context.Background(), domain)
-				require.NoError(t, err)
+				createErr := testDB.DB.CreateDomain(context.Background(), domain)
+				require.NoError(t, createErr)
 			}
 
 			totalInsertedIPs := int64(0)
 			for domain, ips := range tt.setupIPs {
 				for _, ip := range ips {
-					err := testDB.DB.CreateDomainIP(context.Background(), domain, ip)
-					require.NoError(t, err)
+					createIPErr := testDB.DB.CreateDomainIP(context.Background(), domain, ip)
+					require.NoError(t, createIPErr)
 					totalInsertedIPs++
 				}
 			}
 
 			// Verify setup - check that IPs were inserted
 			if totalInsertedIPs > 0 {
-				allIPs, err := testDB.DB.GetAllDomainIPs(context.Background())
-				require.NoError(t, err)
+				allIPs, getErr := testDB.DB.GetAllDomainIPs(context.Background())
+				require.NoError(t, getErr)
 				assert.Len(t, allIPs, int(totalInsertedIPs))
 			}
 
