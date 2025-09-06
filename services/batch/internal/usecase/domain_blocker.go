@@ -53,8 +53,8 @@ func (uc *DomainBlockerUseCase) ProcessAllDomains(ctx context.Context) error {
 		// Continue processing even if reboot detection fails
 	} else if cleanupNeeded {
 		uc.logger.Info("System reboot detected - cleaning up domain IPs table")
-		if err := uc.domainRepo.DeleteAllDomainIPs(ctx); err != nil {
-			uc.logger.Error("Failed to cleanup domain IPs table after reboot", zap.Error(err))
+		if deleteErr := uc.domainRepo.DeleteAllDomainIPs(ctx); deleteErr != nil {
+			uc.logger.Error("Failed to cleanup domain IPs table after reboot", zap.Error(deleteErr))
 			// Continue processing even if cleanup fails
 		} else {
 			uc.logger.Info("Successfully cleaned up domain IPs table after reboot")

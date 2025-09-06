@@ -47,7 +47,7 @@ func (rd *RebootDetector) CheckAndHandleReboot(ctx context.Context) (bool, error
 	rd.logger.Info("Flag file not found - first run after reboot, cleanup needed")
 
 	// Create flag directory if it doesn't exist
-	if err := os.MkdirAll(rd.flagDir, 0o755); err != nil {
+	if err := os.MkdirAll(rd.flagDir, 0o750); err != nil {
 		rd.logger.Error("Failed to create flag directory", zap.Error(err))
 		return true, fmt.Errorf("failed to create flag directory: %w", err)
 	}
@@ -68,7 +68,11 @@ func (rd *RebootDetector) createFlagFile() error {
 	if err != nil {
 		return fmt.Errorf("failed to create flag file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			rd.logger.Warn("Failed to close flag file", zap.Error(closeErr))
+		}
+	}()
 
 	// Write a simple timestamp for reference (optional)
 	if _, err := fmt.Fprintf(file, "executed at: %s\n", os.Args[0]); err != nil {
