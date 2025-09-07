@@ -70,6 +70,11 @@ func LoadConfig(version string) (*Config, error) {
 		return nil, err
 	}
 
+	dnsRetryInterval, err := getDurationEnv("DNS_RETRY_INTERVAL", 60*time.Second)
+	if err != nil {
+		return nil, err
+	}
+
 	// Load configuration from environment variables
 	logLevel := getEnv("LOG_LEVEL", "info")
 	logFormat := getEnv("LOG_FORMAT", "local")
@@ -97,6 +102,7 @@ func LoadConfig(version string) (*Config, error) {
 			MaxConcurrency:   maxConcurrency,
 			DomainTimeout:    domainTimeout,
 			MaxDNSIterations: maxDNSIterations,
+			DNSRetryInterval: dnsRetryInterval,
 		},
 		Database: db.Config{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -212,6 +218,11 @@ func validateConfig(cfg *Config) error {
 	// Validate domain timeout
 	if cfg.Processing.DomainTimeout <= 0 {
 		return fmt.Errorf("domain timeout must be positive, got: %v", cfg.Processing.DomainTimeout)
+	}
+
+	// Validate DNS retry interval
+	if cfg.Processing.DNSRetryInterval <= 0 {
+		return fmt.Errorf("DNS retry interval must be positive, got: %v", cfg.Processing.DNSRetryInterval)
 	}
 
 	return nil

@@ -25,8 +25,9 @@ func validConfig() *Config {
 			Format: "local",
 		},
 		Processing: usecase.ProcessingConfig{
-			MaxConcurrency: 10,
-			DomainTimeout:  30 * time.Second,
+			MaxConcurrency:   10,
+			DomainTimeout:    30 * time.Second,
+			DNSRetryInterval: 60 * time.Second,
 		},
 		DNS: dns.DNSConfig{
 			Timeout:       5 * time.Second,
@@ -213,6 +214,18 @@ func Test_validateConfig(t *testing.T) {
 			},
 			wantErr:     true,
 			errContains: "domain timeout must be positive",
+		},
+		{
+			name: "invalid DNS retry interval",
+			args: args{
+				cfg: func() *Config {
+					cfg := validConfig()
+					cfg.Processing.DNSRetryInterval = 0
+					return cfg
+				}(),
+			},
+			wantErr:     true,
+			errContains: "DNS retry interval must be positive",
 		},
 	}
 	for _, tt := range tests {

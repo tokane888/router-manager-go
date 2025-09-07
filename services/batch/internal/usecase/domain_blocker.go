@@ -11,9 +11,10 @@ import (
 
 // ProcessingConfig contains domain processing configuration
 type ProcessingConfig struct {
-	MaxConcurrency   int // Configurable via environment variable, default 10
-	DomainTimeout    time.Duration
-	MaxDNSIterations int // Configurable via environment variable, default 5
+	MaxConcurrency      int           // Configurable via environment variable, default 10
+	DomainTimeout       time.Duration
+	MaxDNSIterations    int           // Configurable via environment variable, default 5
+	DNSRetryInterval    time.Duration // Configurable via environment variable, default 60 seconds
 }
 
 type DomainBlockerUseCase struct {
@@ -110,7 +111,7 @@ func (uc *DomainBlockerUseCase) processDomain(ctx context.Context, domain string
 }
 
 // discoverAllIPs discovers all IP addresses for a domain
-// 短時間でipが切り替わるサイトへの対応のため、30秒間隔で一定回数名前解決実行
+// 短時間でipが切り替わるサイトへの対応のため、設定可能な間隔（デフォルト60秒）で一定回数名前解決実行
 func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain string) ([]string, error) {
 	uc.logger.Info("Discovering IPs for domain", zap.String("domain", domain))
 
@@ -145,11 +146,11 @@ func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain strin
 	}
 
 	for iteration := 1; iteration < maxIterations; iteration++ {
-		// 2. 30秒待機
+		// 2. 設定可能な間隔で待機
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
-		case <-time.After(30 * time.Second):
+		case <-time.After(uc.config.DNSRetryInterval):
 		}
 
 		// 3. 名前解決を再度行う
