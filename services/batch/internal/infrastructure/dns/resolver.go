@@ -51,11 +51,10 @@ func (r *dnsResolverImpl) ResolveIPs(ctx context.Context, domain string) ([]stri
 
 	var lastErr error
 	for attempt := 0; attempt <= r.retryAttempts; attempt++ {
-		if attempt > 0 {
-			r.logger.Debug("Retrying DNS resolution",
-				zap.String("domain", domain),
-				zap.Int("attempt", attempt))
-		}
+		r.logger.Debug("DNS resolution attempt",
+			zap.String("domain", domain),
+			zap.Int("attempt", attempt+1),
+			zap.Int("maxAttempts", r.retryAttempts+1))
 
 		ips, err := r.resolveWithTimeout(ctx, domain)
 		if err != nil {
