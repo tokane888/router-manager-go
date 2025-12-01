@@ -7,7 +7,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/tokane888/router-manager-go/pkg/db v0.0.0
 	github.com/tokane888/router-manager-go/pkg/logger v0.0.0
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.27.1
 )
 
 require (
