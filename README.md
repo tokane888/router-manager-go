@@ -1,5 +1,11 @@
 # router-manager-go
 
+- ルーターとして使用するRaspberry pi 4B+用の管理ツール
+- 指定ドメインの名前解決、指定ドメインに対応するipへの通信をblock
+- 前提
+  - Raspberry pi 4B+は毎日再起動される
+  - 再起動時に変更したnftablesのruleは保存されない
+
 ## 各service概要
 
 - api
