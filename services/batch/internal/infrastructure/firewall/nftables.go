@@ -91,7 +91,7 @@ func (n *NFTablesManager) RemoveBlockRule(ctx context.Context, ip string) error 
 func (n *NFTablesManager) executeCommand(ctx context.Context, args []string) error {
 	n.logger.Debug("Executing nft command", zap.Strings("args", args))
 
-	cmd := exec.CommandContext(ctx, "nft", args...)
+	cmd := exec.CommandContext(ctx, "nft", args...) //nolint:gosec // G204: args are internally generated (config values and DNS results), not external input
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		n.logger.Error("nft command failed",

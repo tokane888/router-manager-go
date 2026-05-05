@@ -8,7 +8,7 @@
   "features": {
     "ghcr.io/anthropics/devcontainer-features/claude-code:latest": {},
 
-    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": { "moby": false },
 
     // keyring等でOSが保持している認証情報はマウント出来ないので、その場合はlocalで実行
     "ghcr.io/devcontainers/features/github-cli:1": {}
@@ -91,8 +91,7 @@
   "postCreateCommand": "bash ./.devcontainer/postCreateCommand.sh",
   "postStartCommand": "bash ./.devcontainer/postStartCommand.sh",
   "remoteEnv": {
-    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
-    "OLLAMA_BASE_URL": "${localEnv:OLLAMA_BASE_URL}"
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}"
   },
   "containerEnv": {
     "TZ": "Asia/Tokyo"

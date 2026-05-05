@@ -1,8 +1,6 @@
----
 name: Test and Lint
 
 on:
-  push:
   pull_request:
 
 jobs:
@@ -12,9 +10,10 @@ jobs:
     outputs:
       all-modules: ${{ steps.find.outputs.all-modules }}
       test-modules: ${{ steps.find.outputs.test-modules }}
+      main-modules: ${{ steps.find.outputs.main-modules }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -23,28 +22,30 @@ jobs:
         run: |
           # -xオプションを指定しないとshell実行ログが出力されないため指定
           set -x
-          # Find all modules
-          all_modules=$(find ./services ./pkg -name "go.mod" -print0 | xargs -0 dirname | sed 's|^\./||' | sort)
-
-          # Find modules with test files
+          all_modules=$(find . -name "go.mod" -print0 | xargs -0 dirname | sed 's|^\./||' | sort)
+          # modules with *_test.go
           test_modules=""
+          # modules with main package
+          main_modules=""
           IFS=$'\n'
           for module in $all_modules; do
             if [ -n "$module" ] && test -n "$(find "$module" -name "*_test.go" -print -quit)"; then
               test_modules="$test_modules$module\n"
             fi
+            # mainパッケージを持つモジュールを検出
+            if [ -n "$module" ] && grep -r --include="*.go" -l "^package main" "$module" > /dev/null 2>&1; then
+              main_modules="$main_modules$module\n"
+            fi
           done
           unset IFS
 
-          # Convert to JSON arrays
           all_modules_json=$(echo "$all_modules" | jq -R -s -c 'split("\n") | map(select(length > 0))')
           test_modules_json=$(echo -e "$test_modules" | jq -R -s -c 'split("\n") | map(select(length > 0))')
-
-          echo "All modules: $all_modules_json"
-          echo "Test modules: $test_modules_json"
+          main_modules_json=$(echo -e "$main_modules" | jq -R -s -c 'split("\n") | map(select(length > 0))')
 
           echo "all-modules=$all_modules_json" >> $GITHUB_OUTPUT
           echo "test-modules=$test_modules_json" >> $GITHUB_OUTPUT
+          echo "main-modules=$main_modules_json" >> $GITHUB_OUTPUT
 
   test:
     name: Test (${{ matrix.module }})
@@ -56,14 +57,14 @@ jobs:
         module: ${{ fromJson(needs.find-modules.outputs.test-modules) }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.24"
+          go-version: "1.26.2"
           cache-dependency-path: ${{ matrix.module }}/go.sum
 
       - name: Download dependencies
@@ -72,7 +73,7 @@ jobs:
 
       - name: Run tests
         working-directory: ${{ matrix.module }}
-        run: go test -v ./...
+        run: go test -v -cover ./...
 
   lint:
     name: Lint (${{ matrix.module }})
@@ -83,19 +84,24 @@ jobs:
         module: ${{ fromJson(needs.find-modules.outputs.all-modules) }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
-          go-version: "1.24"
+          go-version: "1.26.2"
           cache-dependency-path: ${{ matrix.module }}/go.sum
 
       - name: Download dependencies
         working-directory: ${{ matrix.module }}
         run: go mod download
+
+      - name: Pre-build for golangci-lint
+        if: startsWith(matrix.module, 'services/')
+        working-directory: ${{ matrix.module }}
+        run: go build ./cmd/...
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v9
@@ -108,3 +114,57 @@ jobs:
           skip-cache: true
           # 緊急で修正する必要があり、lint, test等を完全に通す余力がない場合は以下のコメントアウトを解除
           # continue-on-error: true
+  deadcode:
+    name: Deadcode (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    needs: find-modules
+    if: ${{ needs.find-modules.outputs.main-modules != '[]' }}
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.find-modules.outputs.main-modules) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.2"
+          cache-dependency-path: ${{ matrix.module }}/go.sum
+
+      - name: Install deadcode
+        run: go install golang.org/x/tools/cmd/deadcode@latest
+
+      - name: Run deadcode
+        working-directory: ${{ matrix.module }}
+        run: |
+          output=$(deadcode ./... 2>&1)
+          if [ -n "$output" ]; then
+            echo "$output"
+            exit 1
+          fi
+
+  spellcheck:
+    name: Spell Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run cspell
+        uses: streetsidesoftware/cspell-action@v8
+        with:
+          # 変更されたファイルのみチェック
+          incremental_files_only: true
+          # PRに警告アノテーションを追加
+          inline: warning
+          # 厳密モード無効（警告のみ、ブロックしない）
+          strict: false
+          # cspell設定ファイルを明示的に指定
+          config: .cspell.json
+        # エラーがあってもジョブを失敗させない
+        continue-on-error: true

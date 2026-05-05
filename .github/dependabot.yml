@@ -19,3 +19,7 @@ updates:
     directory: "/pkg/logger"
     schedule:
       interval: monthly
+  - package-ecosystem: "devcontainers"
+    directory: "/.devcontainer"
+    schedule:
+      interval: monthly

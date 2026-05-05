@@ -3,7 +3,7 @@ pre-commit:
   commands:
     dprint-fmt:
       run: |
-        files=$(echo "{staged_files}" | tr ' ' '\n' | grep -E '(Dockerfile|\.json|\.md)$' || true)
+        files=$(echo "{staged_files}" | tr ' ' '\n' | grep -E '(Dockerfile|\.json|\.md)$' | grep -v 'devcontainer-lock\.json' || true)
         if [ -n "$files" ]; then
           echo "$files" # フォーマット対象のファイル名出力(go fmt等では出力されるが、dprintでは出力されないため)
           echo "$files" | xargs -r dprint fmt
