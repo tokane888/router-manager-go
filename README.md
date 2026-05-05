@@ -46,8 +46,6 @@ export ANTHROPIC_API_KEY="sk-ant-xxx..."
 ### 手順
 
 - devcontainer起動
-- 下記実行でcommit前git hook登録
-  - `lefthook install`
 
 ## 設計方針
 
