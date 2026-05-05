@@ -98,9 +98,9 @@ jobs:
         run: go mod download
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v8
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.3.1
+          version: v2.11.4
           args: --config=${{ github.workspace }}/.golangci.yml
           working-directory: ${{ matrix.module }}
           # デフォルトではcacheは`~/.cache/golangci-lint`に保存される。

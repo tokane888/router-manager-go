@@ -2,51 +2,134 @@ package firewall
 
 import (
 	"context"
+	"fmt"
+	"os/exec"
+	"time"
 
 	"go.uber.org/zap"
 )
 
 // NFTablesManager implements the FirewallManager interface for nftables
+
+// NFTablesManagerConfig contains nftables management configuration
+type NFTablesManagerConfig struct {
+	DryRun         bool
+	CommandTimeout time.Duration
+	Family         string // nftables address family (ip, ip6, inet, etc.)
+	Table          string // nftables table name
+	Chain          string // nftables chain name
+}
+
 type NFTablesManager struct {
-	logger *zap.Logger
-	dryRun bool // For development environments
+	logger    *zap.Logger
+	dryRun    bool   // For development environments
+	family    string // nftables address family
+	tableName string // nftables table name
+	chainName string // nftables chain name
 }
 
 // NewNFTablesManager creates a new nftables manager implementation
-func NewNFTablesManager(logger *zap.Logger, dryRun bool) *NFTablesManager {
+func NewNFTablesManager(cfg NFTablesManagerConfig, logger *zap.Logger) *NFTablesManager {
 	return &NFTablesManager{
-		logger: logger,
-		dryRun: dryRun,
+		logger:    logger,
+		dryRun:    cfg.DryRun,
+		family:    cfg.Family,
+		tableName: cfg.Table,
+		chainName: cfg.Chain,
 	}
 }
 
 // AddBlockRule adds a blocking rule for the specified IP
 func (n *NFTablesManager) AddBlockRule(ctx context.Context, ip string) error {
-	// TODO: Implement nftables rule addition
-	// Note: This implementation will need to:
-	// 1. Check if the target table and chain exist
-	// 2. Create OUTPUT chain if it doesn't exist (with appropriate hook and policy)
-	// 3. Add IPv4-specific blocking rules to prevent outgoing packets to the specified IP
-	// Example: nft add rule ip filter OUTPUT ip daddr <IP_ADDRESS> drop
-	// This will be implemented in subsequent tasks
-	n.logger.Info("AddBlockRule called", zap.String("ip", ip), zap.Bool("dry_run", n.dryRun))
+	if n.dryRun {
+		n.logger.Info("DRY RUN: Would add nftables rule", zap.String("ip", ip))
+		return nil
+	}
+
+	n.logger.Info("Adding nftables rule", zap.String("ip", ip))
+
+	// Check if table and chain exist (do not create)
+	if err := n.ensureTableAndChainExist(ctx); err != nil {
+		return fmt.Errorf("failed to check table and chain: %w", err)
+	}
+
+	// Insert the blocking rule at the beginning of the chain for higher priority
+	// Using "insert" instead of "add" to place the rule at the beginning
+	args := []string{"insert", "rule", n.family, n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
+	if err := n.executeCommand(ctx, args); err != nil {
+		return fmt.Errorf("failed to insert blocking rule for IP %s: %w", ip, err)
+	}
+
+	n.logger.Info("Successfully inserted nftables rule at the beginning of chain", zap.String("ip", ip))
 	return nil
 }
 
 // RemoveBlockRule removes a blocking rule for the specified IP
 func (n *NFTablesManager) RemoveBlockRule(ctx context.Context, ip string) error {
-	// TODO: Implement nftables rule removal
-	// Note: This implementation will need to handle IPv4-specific rule removal from OUTPUT chain
-	// This will be implemented in subsequent tasks
-	n.logger.Info("RemoveBlockRule called", zap.String("ip", ip), zap.Bool("dry_run", n.dryRun))
+	if n.dryRun {
+		n.logger.Info("DRY RUN: Would remove nftables rule", zap.String("ip", ip))
+		return nil
+	}
+
+	n.logger.Info("Removing nftables rule", zap.String("ip", ip))
+
+	// Delete the specific rule (nftables will find and remove the matching rule)
+	args := []string{"delete", "rule", n.family, n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
+	if err := n.executeCommand(ctx, args); err != nil {
+		// If the rule doesn't exist, nftables will return an error, but we can log and continue
+		n.logger.Warn("Failed to remove nftables rule (may not exist)",
+			zap.String("ip", ip),
+			zap.Error(err))
+		return nil // Don't return error to continue processing other IPs
+	}
+
+	n.logger.Info("Successfully removed nftables rule", zap.String("ip", ip))
 	return nil
 }
 
 // executeCommand executes nftables commands
-// nolint: unused
 func (n *NFTablesManager) executeCommand(ctx context.Context, args []string) error {
-	// TODO: Implement command execution
-	// This will be implemented in subsequent tasks
-	n.logger.Info("executeCommand called", zap.Strings("args", args))
+	n.logger.Debug("Executing nft command", zap.Strings("args", args))
+
+	cmd := exec.CommandContext(ctx, "nft", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		n.logger.Error("nft command failed",
+			zap.Strings("args", args),
+			zap.String("output", string(output)),
+			zap.Error(err))
+		return fmt.Errorf("nft command failed: %s: %w", string(output), err)
+	}
+
+	n.logger.Debug("nft command executed successfully",
+		zap.Strings("args", args),
+		zap.String("output", string(output)))
+
+	return nil
+}
+
+// ensureTableAndChainExist ensures the nftables table and chain exist
+func (n *NFTablesManager) ensureTableAndChainExist(ctx context.Context) error {
+	// Check if table exists
+	checkTableArgs := []string{"list", "table", n.family, n.tableName}
+	if err := n.executeCommand(ctx, checkTableArgs); err != nil {
+		n.logger.Error("Table does not exist",
+			zap.String("family", n.family),
+			zap.String("table", n.tableName),
+			zap.Error(err))
+		return fmt.Errorf("table %s in family %s does not exist: %w", n.tableName, n.family, err)
+	}
+
+	// Check if chain exists
+	checkChainArgs := []string{"list", "chain", n.family, n.tableName, n.chainName}
+	if err := n.executeCommand(ctx, checkChainArgs); err != nil {
+		n.logger.Error("Chain does not exist",
+			zap.String("family", n.family),
+			zap.String("table", n.tableName),
+			zap.String("chain", n.chainName),
+			zap.Error(err))
+		return fmt.Errorf("chain %s in table %s (family %s) does not exist: %w", n.chainName, n.tableName, n.family, err)
+	}
+
 	return nil
 }

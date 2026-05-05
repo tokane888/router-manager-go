@@ -191,3 +191,18 @@ func (db *DB) GetAllDomainIPs(ctx context.Context) ([]DomainIP, error) {
 
 	return domainIPs, nil
 }
+
+// DeleteAllDomainIPs deletes all domain IP entries from the database
+// This is typically used after system reboot to clear nftables state
+func (db *DB) DeleteAllDomainIPs(ctx context.Context) error {
+	query := `DELETE FROM domain_ips`
+	result, err := db.pool.Exec(ctx, query)
+	if err != nil {
+		db.log.Error("Failed to delete all domain IPs", zap.Error(err))
+		return fmt.Errorf("failed to delete all domain IPs: %w", err)
+	}
+
+	rowsAffected := result.RowsAffected()
+	db.log.Info("All domain IPs deleted successfully", zap.Int64("rows_affected", rowsAffected))
+	return nil
+}

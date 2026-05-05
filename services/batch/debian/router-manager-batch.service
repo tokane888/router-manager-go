@@ -1,0 +1,18 @@
+[Unit]
+Description=Router Manager Batch Service
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=/etc/default/router-manager-batch
+ExecStart=/usr/local/bin/router-manager-batch
+Restart=on-failure
+RestartSec=10s
+
+# Capabilities for nftables
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target

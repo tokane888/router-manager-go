@@ -1,0 +1,4 @@
+debian/router-manager-batch usr/local/bin/
+debian/router-manager-batch.service lib/systemd/system/
+debian/router-manager-batch.timer lib/systemd/system/
+debian/router-manager-batch.default etc/default/router-manager-batch

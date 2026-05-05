@@ -1,0 +1,45 @@
+#!/bin/sh
+set -e
+
+case "$1" in
+    configure)
+        # Create service user if it doesn't exist
+        if ! getent passwd router-manager > /dev/null 2>&1; then
+            adduser --system --group --no-create-home --home /nonexistent \
+                --gecos "Router Manager Service" router-manager
+        fi
+
+        # Add user to docker group
+        if getent group docker > /dev/null 2>&1; then
+            usermod -a -G docker router-manager || true
+        fi
+
+        # Set capabilities for nftables management
+        setcap 'cap_net_admin,cap_net_raw+ep' /usr/local/bin/router-manager-batch || true
+
+        # Create necessary directories
+        mkdir -p /opt/router-manager
+        chown router-manager:router-manager /opt/router-manager
+
+        # Set proper permissions on config file
+        if [ -f /etc/default/router-manager-batch ]; then
+            chmod 600 /etc/default/router-manager-batch
+            chown router-manager:router-manager /etc/default/router-manager-batch
+        fi
+
+        # Reload systemd
+        systemctl daemon-reload || true
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

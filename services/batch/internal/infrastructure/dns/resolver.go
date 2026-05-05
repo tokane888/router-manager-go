@@ -6,7 +6,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/tokane888/router-manager-go/services/batch/internal/config"
 	"github.com/tokane888/router-manager-go/services/batch/internal/domain/repository"
 	"go.uber.org/zap"
 )
@@ -27,7 +26,14 @@ type dnsResolverImpl struct {
 // NewDNSResolver creates a new DNS resolver implementation
 // resolver parameter should be net.DefaultResolver for production use,
 // or a mock implementation for testing
-func NewDNSResolver(cfg *config.DNSConfig, resolver NetResolver, logger *zap.Logger) repository.DNSResolver {
+
+// DNSConfig contains DNS resolution configuration
+type DNSConfig struct {
+	Timeout       time.Duration
+	RetryAttempts int
+}
+
+func NewDNSResolver(cfg DNSConfig, resolver NetResolver, logger *zap.Logger) repository.DNSResolver {
 	return &dnsResolverImpl{
 		resolver:      resolver,
 		logger:        logger,
@@ -45,11 +51,10 @@ func (r *dnsResolverImpl) ResolveIPs(ctx context.Context, domain string) ([]stri
 
 	var lastErr error
 	for attempt := 0; attempt <= r.retryAttempts; attempt++ {
-		if attempt > 0 {
-			r.logger.Debug("Retrying DNS resolution",
-				zap.String("domain", domain),
-				zap.Int("attempt", attempt))
-		}
+		r.logger.Debug("DNS resolution attempt",
+			zap.String("domain", domain),
+			zap.Int("attempt", attempt+1),
+			zap.Int("maxAttempts", r.retryAttempts+1))
 
 		ips, err := r.resolveWithTimeout(ctx, domain)
 		if err != nil {
