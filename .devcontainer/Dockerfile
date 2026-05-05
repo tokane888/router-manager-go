@@ -31,4 +31,6 @@ RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/ins
 # /go/pkg/mod/cache/download/ 配下のownerがrootになることを防ぐためvscode user使用
 USER vscode
 RUN go install mvdan.cc/gofumpt@latest
+RUN go install golang.org/x/vuln/cmd/govulncheck@latest
+RUN go install golang.org/x/tools/cmd/deadcode@latest
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
