@@ -12,7 +12,7 @@ import (
 	"github.com/tokane888/router-manager-go/services/batch/internal/usecase"
 )
 
-// TestLoadConfig is removed as it requires extensive environment setup
+// TestNewConfig is removed as it requires extensive environment setup
 // and has high maintenance cost. Individual helper function tests below
 // provide sufficient coverage for the configuration loading logic.
 

@@ -25,9 +25,9 @@ type Config struct {
 	Processing usecase.ProcessingConfig
 }
 
-// LoadConfig loads configuration from environment variables and defaults
+// NewConfig loads configuration from environment variables and defaults
 // Priority: environment variables > defaults
-func LoadConfig(version string) (*Config, error) {
+func NewConfig(version string) (*Config, error) {
 	// Determine environment from environment variable
 	env := getEnv("ENV", "local")
 
