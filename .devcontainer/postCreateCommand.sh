@@ -1,5 +1,7 @@
 #!/bin/bash
 
+lefthook install
+
 # mcp install
 
 # context7が存在しない場合のみ追加
