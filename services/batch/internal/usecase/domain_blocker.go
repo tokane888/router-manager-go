@@ -11,10 +11,10 @@ import (
 
 // ProcessingConfig contains domain processing configuration
 type ProcessingConfig struct {
-	MaxConcurrency      int           // Configurable via environment variable, default 10
-	DomainTimeout       time.Duration
-	MaxDNSIterations    int           // Configurable via environment variable, default 5
-	DNSRetryInterval    time.Duration // Configurable via environment variable, default 60 seconds
+	MaxConcurrency   int // Configurable via environment variable, default 10
+	DomainTimeout    time.Duration
+	MaxDNSIterations int           // Configurable via environment variable, default 5
+	DNSRetryInterval time.Duration // Configurable via environment variable, default 60 seconds
 }
 
 type DomainBlockerUseCase struct {
@@ -39,9 +39,9 @@ func NewDomainBlockerUseCase(
 		domainRepo:      domainRepo,
 		dnsResolver:     dnsResolver,
 		firewallManager: firewallManager,
+		rebootDetector:  rebootDetector,
 		logger:          logger,
 		config:          config,
-		rebootDetector:  rebootDetector,
 	}
 }
 
