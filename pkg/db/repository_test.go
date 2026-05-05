@@ -264,4 +264,3 @@ func Test_IntegrationWorkflow(t *testing.T) {
 	assert.Contains(t, remainingIPs, "192.168.1.11")
 	assert.NotContains(t, remainingIPs, "192.168.1.10")
 }
-
