@@ -24,6 +24,7 @@
     "godotenv",
     "gofumpt",
     "golangci",
+    "gosec",
     "gomod",
     "goreleaser",
     "govulncheck",
