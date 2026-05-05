@@ -18,8 +18,8 @@ type Config struct {
 	// 必要に応じてDatabaseConfig等各structへ注入する設定追加
 }
 
-// LoadConfig loads environment variables into Config
-func LoadConfig(version string) (*Config, error) {
+// NewConfig loads environment variables into Config
+func NewConfig(version string) (*Config, error) {
 	env := getEnv("ENV", "local")
 	envFile := ".env/.env." + env
 	err := godotenv.Load(envFile)
