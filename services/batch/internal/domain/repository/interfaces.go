@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/tokane888/router-manager-go/pkg/db"
 )
@@ -33,5 +34,6 @@ type DomainRepository interface {
 	CreateDomainIP(ctx context.Context, domainName, ipAddress string) error
 	DeleteDomainIP(ctx context.Context, domainName, ipAddress string) error
 	GetAllDomainIPs(ctx context.Context) ([]db.DomainIP, error)
-	DeleteAllDomainIPs(ctx context.Context) error
+	UpdateDomainIPUpdatedAt(ctx context.Context, domainName, ipAddress string) error
+	DeleteExpiredDomainIPs(ctx context.Context, cutoff time.Time) ([]db.DomainIP, error)
 }
