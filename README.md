@@ -28,7 +28,6 @@
 MCPサーバー（cipher）を使用する場合、以下の環境変数をホスト側で設定してください：
 
 - `ANTHROPIC_API_KEY`: Anthropic Claude API キー
-- `OLLAMA_BASE_URL`: Ollama ローカルLLM URL
 
 例（~/.zshrc または ~/.bashrc）：
 
