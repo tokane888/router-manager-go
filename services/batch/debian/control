@@ -3,10 +3,10 @@ Section: net
 Priority: optional
 Maintainer: Your Name <your.email@example.com>
 Build-Depends: debhelper-compat (= 13),
-               golang-go (>= 1.24),
+               golang-go (>= 1.26),
                dh-golang
 Standards-Version: 4.6.0
-Homepage: https://github.com/yourusername/router-manager-go
+Homepage: <https://github.com/yourusername/router-manager-go>
 
 Package: router-manager-batch
 Version: 0.1.0

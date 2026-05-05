@@ -1,6 +1,6 @@
 module github.com/tokane888/router-manager-go/pkg/logger
 
-go 1.24
+go 1.26.2
 
 require go.uber.org/zap v1.27.0
 
