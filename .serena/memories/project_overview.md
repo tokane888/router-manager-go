@@ -28,7 +28,7 @@ This is a router management system providing domain blocking functionality using
 
 ## Tech Stack
 
-- **Language**: Go 1.24
+- **Language**: Go 1.26
 - **Web Framework**: Gin (for API service)
 - **Logging**: uber/zap with shared logger package
 - **Configuration**: godotenv (.env files)

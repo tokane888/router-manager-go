@@ -2,7 +2,7 @@
 
 ## Go Code Style
 
-- **Go Version**: 1.24
+- **Go Version**: 1.26
 - **Formatter**: gofumpt (via golangci-lint)
 - **Import Organizer**: goimports
 

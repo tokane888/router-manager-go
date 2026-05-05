@@ -3,7 +3,7 @@
 ## Prerequisites
 
 - Linux environment (required for dnsmasq and nftables)
-- Go 1.24+
+- Go 1.26+
 - Docker and VS Code with DevContainer support
 
 ## Environment Variables (Local)
@@ -22,7 +22,7 @@ export ANTHROPIC_API_KEY="sk-ant-xxx..."
 ## DevContainer Features
 
 - Pre-installed tools:
-  - Go 1.24
+  - Go 1.26
   - golangci-lint
   - gofumpt
   - dprint
