@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/zap"
@@ -192,17 +193,61 @@ func (db *DB) GetAllDomainIPs(ctx context.Context) ([]DomainIP, error) {
 	return domainIPs, nil
 }
 
-// DeleteAllDomainIPs deletes all domain IP entries from the database
-// This is typically used after system reboot to clear nftables state
-func (db *DB) DeleteAllDomainIPs(ctx context.Context) error {
-	query := `DELETE FROM domain_ips`
-	result, err := db.pool.Exec(ctx, query)
+// UpdateDomainIPUpdatedAt updates the updated_at timestamp for a domain IP record
+func (db *DB) UpdateDomainIPUpdatedAt(ctx context.Context, domainName, ipAddress string) error {
+	query := `UPDATE domain_ips SET updated_at = NOW() WHERE domain_name = $1 AND ip_address = $2`
+	result, err := db.pool.Exec(ctx, query, domainName, ipAddress)
 	if err != nil {
-		db.log.Error("Failed to delete all domain IPs", zap.Error(err))
-		return fmt.Errorf("failed to delete all domain IPs: %w", err)
+		db.log.Error("Failed to update domain IP updated_at",
+			zap.String("domain", domainName),
+			zap.String("ip", ipAddress),
+			zap.Error(err))
+		return fmt.Errorf("failed to update domain IP updated_at for %s/%s: %w", domainName, ipAddress, err)
 	}
 
-	rowsAffected := result.RowsAffected()
-	db.log.Info("All domain IPs deleted successfully", zap.Int64("rows_affected", rowsAffected))
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("domain IP %s for %s not found", ipAddress, domainName)
+	}
+
+	db.log.Debug("Domain IP updated_at refreshed",
+		zap.String("domain", domainName),
+		zap.String("ip", ipAddress))
 	return nil
+}
+
+// DeleteExpiredDomainIPs deletes domain IP entries older than cutoff and returns the deleted records
+func (db *DB) DeleteExpiredDomainIPs(ctx context.Context, cutoff time.Time) ([]DomainIP, error) {
+	query := `DELETE FROM domain_ips WHERE updated_at < $1
+	          RETURNING id, domain_name, ip_address, created_at, updated_at`
+
+	rows, err := db.pool.Query(ctx, query, cutoff)
+	if err != nil {
+		db.log.Error("Failed to delete expired domain IPs", zap.Error(err))
+		return nil, fmt.Errorf("failed to delete expired domain IPs: %w", err)
+	}
+	defer rows.Close()
+
+	var deleted []DomainIP
+	for rows.Next() {
+		var domainIP DomainIP
+		if err := rows.Scan(
+			&domainIP.ID,
+			&domainIP.DomainName,
+			&domainIP.IPAddress,
+			&domainIP.CreatedAt,
+			&domainIP.UpdatedAt,
+		); err != nil {
+			db.log.Error("Failed to scan deleted domain IP row", zap.Error(err))
+			return nil, fmt.Errorf("failed to scan deleted domain IP row: %w", err)
+		}
+		deleted = append(deleted, domainIP)
+	}
+
+	if err := rows.Err(); err != nil {
+		db.log.Error("Failed to iterate deleted domain IP rows", zap.Error(err))
+		return nil, fmt.Errorf("failed to iterate deleted domain IP rows: %w", err)
+	}
+
+	db.log.Info("Expired domain IPs deleted", zap.Int("count", len(deleted)))
+	return deleted, nil
 }

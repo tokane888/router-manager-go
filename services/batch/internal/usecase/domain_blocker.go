@@ -15,6 +15,7 @@ type ProcessingConfig struct {
 	DomainTimeout    time.Duration
 	MaxDNSIterations int           // Configurable via environment variable, default 5
 	DNSRetryInterval time.Duration // Configurable via environment variable, default 60 seconds
+	IPExpiryDuration time.Duration // Configurable via environment variable, default 24h
 }
 
 type DomainBlockerUseCase struct {
@@ -47,18 +48,16 @@ func NewDomainBlockerUseCase(
 
 // ProcessAllDomains processes all domains from the database
 func (uc *DomainBlockerUseCase) ProcessAllDomains(ctx context.Context) error {
-	// Check if system has rebooted and cleanup is needed
-	cleanupNeeded, err := uc.rebootDetector.CheckAndHandleReboot(ctx)
+	// On first run after reboot, re-apply all existing DB rules to nftables immediately.
+	// nftables resets on reboot, so rules must be re-added from DB before DNS resolution begins.
+	// Subsequent runs skip this to avoid duplicate nftables rules.
+	isReboot, err := uc.rebootDetector.CheckAndHandleReboot(ctx)
 	if err != nil {
 		uc.logger.Error("Failed to check reboot status", zap.Error(err))
-		// Continue processing even if reboot detection fails
-	} else if cleanupNeeded {
-		uc.logger.Info("System reboot detected - cleaning up domain IPs table")
-		if deleteErr := uc.domainRepo.DeleteAllDomainIPs(ctx); deleteErr != nil {
-			uc.logger.Error("Failed to cleanup domain IPs table after reboot", zap.Error(deleteErr))
-			// Continue processing even if cleanup fails
-		} else {
-			uc.logger.Info("Successfully cleaned up domain IPs table after reboot")
+	} else if isReboot {
+		uc.logger.Info("System reboot detected - applying existing IP blocks from database")
+		if applyErr := uc.applyExistingIPBlocks(ctx); applyErr != nil {
+			uc.logger.Error("Failed to apply existing IP blocks after reboot", zap.Error(applyErr))
 		}
 	}
 
@@ -81,6 +80,63 @@ func (uc *DomainBlockerUseCase) ProcessAllDomains(ctx context.Context) error {
 				zap.Error(err))
 			// Continue processing other domains even if one fails
 			continue
+		}
+	}
+
+	// Remove IPs that have not appeared in DNS results for longer than IPExpiryDuration
+	if err := uc.cleanupExpiredIPs(ctx); err != nil {
+		uc.logger.Error("Failed to cleanup expired IPs", zap.Error(err))
+	}
+
+	return nil
+}
+
+// applyExistingIPBlocks loads all domain IPs from the database and applies nftables rules for each.
+// Called only on first run after reboot since nftables rules are lost on system restart.
+func (uc *DomainBlockerUseCase) applyExistingIPBlocks(ctx context.Context) error {
+	allIPs, err := uc.domainRepo.GetAllDomainIPs(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get all domain IPs: %w", err)
+	}
+
+	uc.logger.Info("Applying existing IP blocks from database", zap.Int("count", len(allIPs)))
+
+	for _, domainIP := range allIPs {
+		if err := uc.firewallManager.AddBlockRule(ctx, domainIP.IPAddress); err != nil {
+			uc.logger.Warn("Failed to apply existing nftables rule",
+				zap.String("domain", domainIP.DomainName),
+				zap.String("ip", domainIP.IPAddress),
+				zap.Error(err))
+			// Continue with remaining IPs
+		}
+	}
+
+	uc.logger.Info("Finished applying existing IP blocks")
+	return nil
+}
+
+// cleanupExpiredIPs removes IPs from DB and nftables that have not been seen in DNS results
+// for longer than IPExpiryDuration.
+func (uc *DomainBlockerUseCase) cleanupExpiredIPs(ctx context.Context) error {
+	cutoff := time.Now().Add(-uc.config.IPExpiryDuration)
+	expiredIPs, err := uc.domainRepo.DeleteExpiredDomainIPs(ctx, cutoff)
+	if err != nil {
+		return fmt.Errorf("failed to delete expired domain IPs: %w", err)
+	}
+
+	if len(expiredIPs) == 0 {
+		return nil
+	}
+
+	uc.logger.Info("Removing nftables rules for expired IPs", zap.Int("count", len(expiredIPs)))
+
+	for _, domainIP := range expiredIPs {
+		if err := uc.firewallManager.RemoveBlockRule(ctx, domainIP.IPAddress); err != nil {
+			uc.logger.Warn("Failed to remove nftables rule for expired IP",
+				zap.String("domain", domainIP.DomainName),
+				zap.String("ip", domainIP.IPAddress),
+				zap.Error(err))
+			// Continue with remaining IPs
 		}
 	}
 
@@ -208,25 +264,41 @@ func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain strin
 	return finalIPs, nil
 }
 
-// updateFirewallRules updates nftables rules based on discovered IPs
-func (uc *DomainBlockerUseCase) updateFirewallRules(ctx context.Context, domain string, newIPs []string) error {
-	// Get existing IPs
+// updateFirewallRules updates nftables rules and database based on discovered IPs.
+// Existing IPs found in DNS results have their updated_at refreshed.
+// New IPs are added to both nftables and the database.
+func (uc *DomainBlockerUseCase) updateFirewallRules(ctx context.Context, domain string, resolvedIPs []string) error {
 	existingIPs, err := uc.getExistingIPs(ctx, domain)
 	if err != nil {
 		return fmt.Errorf("failed to get existing IPs for domain %s: %w", domain, err)
 	}
 
-	// Calculate changes
-	ipsToAdd := uc.calculateIPChanges(existingIPs, newIPs)
+	existingIPsMap := make(map[string]bool, len(existingIPs))
+	for _, ip := range existingIPs {
+		existingIPsMap[ip] = true
+	}
 
-	// Add new IPs
-	for _, ip := range ipsToAdd {
-		uc.addIP(ctx, domain, ip)
+	var added, refreshed int
+	for _, ip := range resolvedIPs {
+		if existingIPsMap[ip] {
+			if err := uc.domainRepo.UpdateDomainIPUpdatedAt(ctx, domain, ip); err != nil {
+				uc.logger.Warn("Failed to refresh domain IP timestamp",
+					zap.String("domain", domain),
+					zap.String("ip", ip),
+					zap.Error(err))
+			} else {
+				refreshed++
+			}
+		} else {
+			uc.addIP(ctx, domain, ip)
+			added++
+		}
 	}
 
 	uc.logger.Info("Completed nftables rules update",
 		zap.String("domain", domain),
-		zap.Int("added", len(ipsToAdd)))
+		zap.Int("added", added),
+		zap.Int("refreshed", refreshed))
 
 	return nil
 }
@@ -243,25 +315,6 @@ func (uc *DomainBlockerUseCase) getExistingIPs(ctx context.Context, domain strin
 		existingIPs = append(existingIPs, domainIP.IPAddress)
 	}
 	return existingIPs, nil
-}
-
-// calculateIPChanges determines which IPs need to be added
-func (uc *DomainBlockerUseCase) calculateIPChanges(existingIPs, newIPs []string) []string {
-	// Convert to map for O(1) lookup
-	existingIPsMap := make(map[string]bool)
-	for _, ip := range existingIPs {
-		existingIPsMap[ip] = true
-	}
-
-	// Find IPs to add (exist in newIPs but not in existing)
-	var ipsToAdd []string
-	for _, ip := range newIPs {
-		if !existingIPsMap[ip] {
-			ipsToAdd = append(ipsToAdd, ip)
-		}
-	}
-
-	return ipsToAdd
 }
 
 // addIP adds a new IP address to both nftables and database

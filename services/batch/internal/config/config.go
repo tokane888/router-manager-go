@@ -75,6 +75,11 @@ func NewConfig(version string) (*Config, error) {
 		return nil, err
 	}
 
+	ipExpiryDuration, err := getDurationEnv("IP_EXPIRY_DURATION", 24*time.Hour)
+	if err != nil {
+		return nil, err
+	}
+
 	// Load configuration from environment variables
 	logLevel := getEnv("LOG_LEVEL", "info")
 	logFormat := getEnv("LOG_FORMAT", "local")
@@ -103,6 +108,7 @@ func NewConfig(version string) (*Config, error) {
 			DomainTimeout:    domainTimeout,
 			MaxDNSIterations: maxDNSIterations,
 			DNSRetryInterval: dnsRetryInterval,
+			IPExpiryDuration: ipExpiryDuration,
 		},
 		Database: db.Config{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -223,6 +229,11 @@ func validateConfig(cfg *Config) error {
 	// Validate DNS retry interval
 	if cfg.Processing.DNSRetryInterval <= 0 {
 		return fmt.Errorf("DNS retry interval must be positive, got: %v", cfg.Processing.DNSRetryInterval)
+	}
+
+	// Validate IP expiry duration
+	if cfg.Processing.IPExpiryDuration <= 0 {
+		return fmt.Errorf("IP expiry duration must be positive, got: %v", cfg.Processing.IPExpiryDuration)
 	}
 
 	return nil

@@ -1,5 +1,11 @@
 # router-manager-go
 
+- ルーターとして使用するRaspberry pi 4B+用の管理ツール
+- 指定ドメインの名前解決、指定ドメインに対応するipへの通信をblock
+- 前提
+  - Raspberry pi 4B+は毎日再起動される
+  - 再起動時に変更したnftablesのruleは保存されない
+
 ## 各service概要
 
 - api
@@ -28,7 +34,6 @@
 MCPサーバー（cipher）を使用する場合、以下の環境変数をホスト側で設定してください：
 
 - `ANTHROPIC_API_KEY`: Anthropic Claude API キー
-- `OLLAMA_BASE_URL`: Ollama ローカルLLM URL
 
 例（~/.zshrc または ~/.bashrc）：
 
@@ -41,8 +46,6 @@ export ANTHROPIC_API_KEY="sk-ant-xxx..."
 ### 手順
 
 - devcontainer起動
-- 下記実行でcommit前git hook登録
-  - `lefthook install`
 
 ## 設計方針
 

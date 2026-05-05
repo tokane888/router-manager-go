@@ -28,6 +28,7 @@ func validConfig() *Config {
 			MaxConcurrency:   10,
 			DomainTimeout:    30 * time.Second,
 			DNSRetryInterval: 60 * time.Second,
+			IPExpiryDuration: 24 * time.Hour,
 		},
 		DNS: dns.DNSConfig{
 			Timeout:       5 * time.Second,
@@ -226,6 +227,18 @@ func Test_validateConfig(t *testing.T) {
 			},
 			wantErr:     true,
 			errContains: "DNS retry interval must be positive",
+		},
+		{
+			name: "invalid IP expiry duration",
+			args: args{
+				cfg: func() *Config {
+					cfg := validConfig()
+					cfg.Processing.IPExpiryDuration = 0
+					return cfg
+				}(),
+			},
+			wantErr:     true,
+			errContains: "IP expiry duration must be positive",
 		},
 	}
 	for _, tt := range tests {
