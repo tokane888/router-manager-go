@@ -127,7 +127,7 @@ lefthook run pre-push
 ## システム要件
 
 - Linux環境（dnsmasq、nftablesが必要）
-- go 1.26.2以上
+- go 1.26.3以上
 - DBアクセス（詳細は各サービスの設定を参照）
 
 ## セキュリティ考慮事項

@@ -1,7 +1,7 @@
 FROM mcr.microsoft.com/devcontainers/go:2-1.25-trixie
 
 # Go を最新版に更新(devcontainer imageでは1.25までしか公開されていないため)
-ARG GO_VERSION=1.26.2
+ARG GO_VERSION=1.26.3
 RUN rm -rf /usr/local/go \
     && curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz -o /tmp/go.tgz \
     && tar -C /usr/local -xzf /tmp/go.tgz \
