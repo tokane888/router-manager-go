@@ -145,7 +145,7 @@ sudo chown -R router-manager:router-manager /opt/router-manager
 
 # PostgreSQLを起動
 cd /opt/router-manager
-sudo docker-compose up -d
+sudo docker compose up -d
 ```
 
 ##### 5 systemdユニットの配置と有効化
