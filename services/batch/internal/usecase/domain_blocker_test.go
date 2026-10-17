@@ -3,12 +3,12 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/tokane888/router-manager-go/pkg/db"
-	"go.uber.org/zap"
 )
 
 // --- mock implementations ---
@@ -112,7 +112,7 @@ func newTestUseCase(
 	reboot *mockRebootDetector,
 	cfg ProcessingConfig,
 ) *DomainBlockerUseCase {
-	return NewDomainBlockerUseCase(repo, dns, fw, reboot, zap.NewNop(), cfg)
+	return NewDomainBlockerUseCase(repo, dns, fw, reboot, slog.New(slog.DiscardHandler), cfg)
 }
 
 func defaultConfig() ProcessingConfig {

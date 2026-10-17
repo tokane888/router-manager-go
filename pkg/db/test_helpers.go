@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,7 +13,6 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"go.uber.org/zap"
 )
 
 // TestDBContainer wraps PostgreSQL container for testing
@@ -49,7 +49,7 @@ func SetupTestDB(t *testing.T) *TestDBContainer {
 	}
 
 	// ログ出力しないlogger。test用
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 
 	// Create connection pool using pgx
 	pool, err := pgxpool.New(ctx, connStr)

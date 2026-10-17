@@ -20,7 +20,7 @@ import (
 func validConfig() *Config {
 	return &Config{
 		Env: "local",
-		Logger: logger.LoggerConfig{
+		Logger: logger.Config{
 			Level:  "info",
 			Format: "local",
 		},

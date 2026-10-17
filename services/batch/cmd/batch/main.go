@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net"
+	"os"
 	"os/signal"
 	"syscall"
 
@@ -14,7 +16,6 @@ import (
 	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/firewall"
 	"github.com/tokane888/router-manager-go/services/batch/internal/infrastructure/system"
 	"github.com/tokane888/router-manager-go/services/batch/internal/usecase"
-	"go.uber.org/zap"
 )
 
 // アプリのversion。デフォルトは開発版。cloud上ではbuild時に-ldflagsフラグ経由でバージョンを埋め込む
@@ -26,8 +27,6 @@ func main() {
 		log.Fatalf("failed to load config: %v", err)
 	}
 	logger := pkglogger.NewLogger(cfg.Logger)
-	//nolint: errcheck
-	defer logger.Sync()
 
 	// Create context with signal handling for graceful shutdown
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -38,8 +37,10 @@ func main() {
 	// Initialize database connection
 	database, err := db.NewDB(cfg.Database, logger)
 	if err != nil {
-		logger.Fatal("Failed to initialize database connection",
-			zap.Error(err))
+		logger.Error("Failed to initialize database connection",
+			slog.Any("error", err))
+		stop()
+		os.Exit(1) //nolint:gocritic // stop()で明示的に後始末済み
 	}
 	defer database.Close()
 
@@ -66,7 +67,7 @@ func main() {
 
 	// Execute domain processing
 	if err := domainBlockerUseCase.ProcessAllDomains(ctx); err != nil {
-		logger.Error("Failed to process domains", zap.Error(err))
+		logger.Error("Failed to process domains", slog.Any("error", err))
 	}
 
 	select {

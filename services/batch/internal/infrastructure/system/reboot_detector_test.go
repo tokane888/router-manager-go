@@ -2,16 +2,16 @@ package system
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 // newRebootDetectorWithPaths creates a new reboot detector with custom paths for testing
-func newRebootDetectorWithPaths(logger *zap.Logger, flagDir, flagFile string) *RebootDetector {
+func newRebootDetectorWithPaths(logger *slog.Logger, flagDir, flagFile string) *RebootDetector {
 	return &RebootDetector{
 		logger:   logger,
 		flagDir:  flagDir,
@@ -20,7 +20,7 @@ func newRebootDetectorWithPaths(logger *zap.Logger, flagDir, flagFile string) *R
 }
 
 func TestRebootDetector_CheckAndHandleReboot(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 
 	// Use temporary directory for testing
 	tempDir := t.TempDir()
@@ -99,7 +99,7 @@ func TestRebootDetector_CheckAndHandleReboot(t *testing.T) {
 }
 
 func TestRebootDetector_CreateFlagFile(t *testing.T) {
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 
 	// Use temporary directory for testing
 	tempDir := t.TempDir()

@@ -3,13 +3,13 @@ package dns
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func TestResolveIPs(t *testing.T) {
@@ -113,7 +113,7 @@ func TestResolveIPs(t *testing.T) {
 				Timeout:       tt.timeout,
 				RetryAttempts: tt.retryAttempts,
 			}
-			resolver := NewDNSResolver(cfg, mockRes, zap.NewNop())
+			resolver := NewDNSResolver(cfg, mockRes, slog.New(slog.DiscardHandler))
 
 			ctx := context.Background()
 			ips, err := resolver.ResolveIPs(ctx, tt.domain)

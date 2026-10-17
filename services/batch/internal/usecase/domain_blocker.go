@@ -3,10 +3,10 @@ package usecase
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/tokane888/router-manager-go/services/batch/internal/domain/repository"
-	"go.uber.org/zap"
 )
 
 // ProcessingConfig contains domain processing configuration
@@ -23,7 +23,7 @@ type DomainBlockerUseCase struct {
 	dnsResolver     repository.DNSResolver
 	firewallManager repository.FirewallManager
 	rebootDetector  repository.RebootDetector
-	logger          *zap.Logger
+	logger          *slog.Logger
 	config          ProcessingConfig
 }
 
@@ -33,7 +33,7 @@ func NewDomainBlockerUseCase(
 	dnsResolver repository.DNSResolver,
 	firewallManager repository.FirewallManager,
 	rebootDetector repository.RebootDetector,
-	logger *zap.Logger,
+	logger *slog.Logger,
 	config ProcessingConfig,
 ) *DomainBlockerUseCase {
 	return &DomainBlockerUseCase{
@@ -53,31 +53,31 @@ func (uc *DomainBlockerUseCase) ProcessAllDomains(ctx context.Context) error {
 	// Subsequent runs skip this to avoid duplicate nftables rules.
 	isReboot, err := uc.rebootDetector.CheckAndHandleReboot(ctx)
 	if err != nil {
-		uc.logger.Error("Failed to check reboot status", zap.Error(err))
+		uc.logger.Error("Failed to check reboot status", slog.Any("error", err))
 	} else if isReboot {
 		uc.logger.Info("System reboot detected - applying existing IP blocks from database")
 		if applyErr := uc.applyExistingIPBlocks(ctx); applyErr != nil {
-			uc.logger.Error("Failed to apply existing IP blocks after reboot", zap.Error(applyErr))
+			uc.logger.Error("Failed to apply existing IP blocks after reboot", slog.Any("error", applyErr))
 		}
 	}
 
 	// Retrieve all domains from the database
 	domains, err := uc.domainRepo.GetAllDomains(ctx)
 	if err != nil {
-		uc.logger.Error("Failed to retrieve domains from database", zap.Error(err))
+		uc.logger.Error("Failed to retrieve domains from database", slog.Any("error", err))
 		return err
 	}
 
-	uc.logger.Info("Retrieved domains from database", zap.Int("count", len(domains)))
+	uc.logger.Info("Retrieved domains from database", slog.Int("count", len(domains)))
 
 	// Process each domain
 	for _, domain := range domains {
-		uc.logger.Info("Processing domain", zap.String("domain", domain.DomainName))
+		uc.logger.Info("Processing domain", slog.String("domain", domain.DomainName))
 
 		if err := uc.processDomain(ctx, domain.DomainName); err != nil {
 			uc.logger.Error("Failed to process domain",
-				zap.String("domain", domain.DomainName),
-				zap.Error(err))
+				slog.String("domain", domain.DomainName),
+				slog.Any("error", err))
 			// Continue processing other domains even if one fails
 			continue
 		}
@@ -85,7 +85,7 @@ func (uc *DomainBlockerUseCase) ProcessAllDomains(ctx context.Context) error {
 
 	// Remove IPs that have not appeared in DNS results for longer than IPExpiryDuration
 	if err := uc.cleanupExpiredIPs(ctx); err != nil {
-		uc.logger.Error("Failed to cleanup expired IPs", zap.Error(err))
+		uc.logger.Error("Failed to cleanup expired IPs", slog.Any("error", err))
 	}
 
 	return nil
@@ -99,14 +99,14 @@ func (uc *DomainBlockerUseCase) applyExistingIPBlocks(ctx context.Context) error
 		return fmt.Errorf("failed to get all domain IPs: %w", err)
 	}
 
-	uc.logger.Info("Applying existing IP blocks from database", zap.Int("count", len(allIPs)))
+	uc.logger.Info("Applying existing IP blocks from database", slog.Int("count", len(allIPs)))
 
 	for _, domainIP := range allIPs {
 		if err := uc.firewallManager.AddBlockRule(ctx, domainIP.IPAddress); err != nil {
 			uc.logger.Warn("Failed to apply existing nftables rule",
-				zap.String("domain", domainIP.DomainName),
-				zap.String("ip", domainIP.IPAddress),
-				zap.Error(err))
+				slog.String("domain", domainIP.DomainName),
+				slog.String("ip", domainIP.IPAddress),
+				slog.Any("error", err))
 			// Continue with remaining IPs
 		}
 	}
@@ -128,14 +128,14 @@ func (uc *DomainBlockerUseCase) cleanupExpiredIPs(ctx context.Context) error {
 		return nil
 	}
 
-	uc.logger.Info("Removing nftables rules for expired IPs", zap.Int("count", len(expiredIPs)))
+	uc.logger.Info("Removing nftables rules for expired IPs", slog.Int("count", len(expiredIPs)))
 
 	for _, domainIP := range expiredIPs {
 		if err := uc.firewallManager.RemoveBlockRule(ctx, domainIP.IPAddress); err != nil {
 			uc.logger.Warn("Failed to remove nftables rule for expired IP",
-				zap.String("domain", domainIP.DomainName),
-				zap.String("ip", domainIP.IPAddress),
-				zap.Error(err))
+				slog.String("domain", domainIP.DomainName),
+				slog.String("ip", domainIP.IPAddress),
+				slog.Any("error", err))
 			// Continue with remaining IPs
 		}
 	}
@@ -145,7 +145,7 @@ func (uc *DomainBlockerUseCase) cleanupExpiredIPs(ctx context.Context) error {
 
 // processDomain processes a single domain
 func (uc *DomainBlockerUseCase) processDomain(ctx context.Context, domain string) error {
-	uc.logger.Info("Processing single domain", zap.String("domain", domain))
+	uc.logger.Info("Processing single domain", slog.String("domain", domain))
 
 	// Discover all IPs for the domain
 	discoveredIPs, err := uc.discoverAllIPs(ctx, domain)
@@ -154,34 +154,34 @@ func (uc *DomainBlockerUseCase) processDomain(ctx context.Context, domain string
 	}
 
 	uc.logger.Info("Discovered IPs for domain",
-		zap.String("domain", domain),
-		zap.Int("ip_count", len(discoveredIPs)))
+		slog.String("domain", domain),
+		slog.Int("ip_count", len(discoveredIPs)))
 
 	// Update nftables rules based on discovered IPs
 	if err := uc.updateFirewallRules(ctx, domain, discoveredIPs); err != nil {
 		return fmt.Errorf("failed to update nftables rules for domain %s: %w", domain, err)
 	}
 
-	uc.logger.Info("Successfully processed domain", zap.String("domain", domain))
+	uc.logger.Info("Successfully processed domain", slog.String("domain", domain))
 	return nil
 }
 
 // discoverAllIPs discovers all IP addresses for a domain
 // 短時間でipが切り替わるサイトへの対応のため、設定可能な間隔（デフォルト60秒）で一定回数名前解決実行
 func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain string) ([]string, error) {
-	uc.logger.Info("Discovering IPs for domain", zap.String("domain", domain))
+	uc.logger.Info("Discovering IPs for domain", slog.String("domain", domain))
 
 	// 1. 最初の名前解決を行い、解決結果をips変数に保持
 	initialIPs, err := uc.dnsResolver.ResolveIPs(ctx, domain)
 	if err != nil {
 		uc.logger.Error("Failed to resolve IPs for domain",
-			zap.String("domain", domain),
-			zap.Error(err))
+			slog.String("domain", domain),
+			slog.Any("error", err))
 		return nil, fmt.Errorf("DNS resolution failed for domain %s: %w", domain, err)
 	}
 
 	if len(initialIPs) == 0 {
-		uc.logger.Warn("No IPs discovered for domain", zap.String("domain", domain))
+		uc.logger.Warn("No IPs discovered for domain", slog.String("domain", domain))
 		return []string{}, nil
 	}
 
@@ -192,8 +192,8 @@ func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain strin
 	}
 
 	uc.logger.Info("Initial IP discovery completed",
-		zap.String("domain", domain),
-		zap.Strings("ips", initialIPs))
+		slog.String("domain", domain),
+		slog.Any("ips", initialIPs))
 
 	// 最大反復回数を設定（デフォルトは5回）
 	maxIterations := uc.config.MaxDNSIterations
@@ -213,9 +213,9 @@ func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain strin
 		currentIPs, err := uc.dnsResolver.ResolveIPs(ctx, domain)
 		if err != nil {
 			uc.logger.Warn("DNS resolution failed during iteration",
-				zap.String("domain", domain),
-				zap.Int("iteration", iteration),
-				zap.Error(err))
+				slog.String("domain", domain),
+				slog.Int("iteration", iteration),
+				slog.Any("error", err))
 			// エラーが発生した場合は現在のIPリストを返す
 			break
 		}
@@ -228,17 +228,17 @@ func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain strin
 				ipsMap[ip] = true
 				hasNewIPs = true
 				uc.logger.Info("New IP discovered",
-					zap.String("domain", domain),
-					zap.String("new_ip", ip),
-					zap.Int("iteration", iteration))
+					slog.String("domain", domain),
+					slog.String("new_ip", ip),
+					slog.Int("iteration", iteration))
 			}
 		}
 
 		// 4. 新しいIPがない場合は終了
 		if !hasNewIPs {
 			uc.logger.Info("No new IPs found, IP discovery stabilized",
-				zap.String("domain", domain),
-				zap.Int("iteration", iteration))
+				slog.String("domain", domain),
+				slog.Int("iteration", iteration))
 			break
 		}
 	}
@@ -246,8 +246,8 @@ func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain strin
 	// 最大反復回数に達した場合のログ
 	if maxIterations > 1 {
 		uc.logger.Info("IP discovery completed",
-			zap.String("domain", domain),
-			zap.Int("max_iterations", maxIterations))
+			slog.String("domain", domain),
+			slog.Int("max_iterations", maxIterations))
 	}
 
 	// 最終的なIPリストを作成
@@ -257,9 +257,9 @@ func (uc *DomainBlockerUseCase) discoverAllIPs(ctx context.Context, domain strin
 	}
 
 	uc.logger.Info("IP discovery completed with iterative resolution",
-		zap.String("domain", domain),
-		zap.Strings("final_ips", finalIPs),
-		zap.Int("total_ips", len(finalIPs)))
+		slog.String("domain", domain),
+		slog.Any("final_ips", finalIPs),
+		slog.Int("total_ips", len(finalIPs)))
 
 	return finalIPs, nil
 }
@@ -283,9 +283,9 @@ func (uc *DomainBlockerUseCase) updateFirewallRules(ctx context.Context, domain 
 		if existingIPsMap[ip] {
 			if err := uc.domainRepo.UpdateDomainIPUpdatedAt(ctx, domain, ip); err != nil {
 				uc.logger.Warn("Failed to refresh domain IP timestamp",
-					zap.String("domain", domain),
-					zap.String("ip", ip),
-					zap.Error(err))
+					slog.String("domain", domain),
+					slog.String("ip", ip),
+					slog.Any("error", err))
 			} else {
 				refreshed++
 			}
@@ -296,9 +296,9 @@ func (uc *DomainBlockerUseCase) updateFirewallRules(ctx context.Context, domain 
 	}
 
 	uc.logger.Info("Completed nftables rules update",
-		zap.String("domain", domain),
-		zap.Int("added", added),
-		zap.Int("refreshed", refreshed))
+		slog.String("domain", domain),
+		slog.Int("added", added),
+		slog.Int("refreshed", refreshed))
 
 	return nil
 }
@@ -320,15 +320,15 @@ func (uc *DomainBlockerUseCase) getExistingIPs(ctx context.Context, domain strin
 // addIP adds a new IP address to both nftables and database
 func (uc *DomainBlockerUseCase) addIP(ctx context.Context, domain, ip string) {
 	uc.logger.Info("Adding nftables rule and domain IP",
-		zap.String("domain", domain),
-		zap.String("ip", ip))
+		slog.String("domain", domain),
+		slog.String("ip", ip))
 
 	// Add nftables rule first
 	if err := uc.firewallManager.AddBlockRule(ctx, ip); err != nil {
 		uc.logger.Warn("Failed to add nftables rule, continuing with others",
-			zap.String("domain", domain),
-			zap.String("ip", ip),
-			zap.Error(err))
+			slog.String("domain", domain),
+			slog.String("ip", ip),
+			slog.Any("error", err))
 		return
 	}
 
@@ -337,19 +337,19 @@ func (uc *DomainBlockerUseCase) addIP(ctx context.Context, domain, ip string) {
 		// If database insertion fails, try to remove the nftables rule
 		if rollbackErr := uc.firewallManager.RemoveBlockRule(ctx, ip); rollbackErr != nil {
 			uc.logger.Error("Failed to rollback nftables rule after database error",
-				zap.String("domain", domain),
-				zap.String("ip", ip),
-				zap.Error(rollbackErr))
+				slog.String("domain", domain),
+				slog.String("ip", ip),
+				slog.Any("error", rollbackErr))
 		}
 
 		uc.logger.Warn("Failed to create domain IP, continuing with others",
-			zap.String("domain", domain),
-			zap.String("ip", ip),
-			zap.Error(err))
+			slog.String("domain", domain),
+			slog.String("ip", ip),
+			slog.Any("error", err))
 		return
 	}
 
 	uc.logger.Info("Successfully added nftables rule and domain IP",
-		zap.String("domain", domain),
-		zap.String("ip", ip))
+		slog.String("domain", domain),
+		slog.String("ip", ip))
 }

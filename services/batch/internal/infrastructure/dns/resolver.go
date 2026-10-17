@@ -3,11 +3,11 @@ package dns
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
 	"github.com/tokane888/router-manager-go/services/batch/internal/domain/repository"
-	"go.uber.org/zap"
 )
 
 // NetResolver is an interface for DNS resolution (useful for testing)
@@ -18,7 +18,7 @@ type NetResolver interface {
 // dnsResolverImpl implements the DNSResolver interface
 type dnsResolverImpl struct {
 	resolver      NetResolver
-	logger        *zap.Logger
+	logger        *slog.Logger
 	timeout       time.Duration
 	retryAttempts int
 }
@@ -33,7 +33,7 @@ type DNSConfig struct {
 	RetryAttempts int
 }
 
-func NewDNSResolver(cfg DNSConfig, resolver NetResolver, logger *zap.Logger) repository.DNSResolver {
+func NewDNSResolver(cfg DNSConfig, resolver NetResolver, logger *slog.Logger) repository.DNSResolver {
 	return &dnsResolverImpl{
 		resolver:      resolver,
 		logger:        logger,
@@ -45,24 +45,24 @@ func NewDNSResolver(cfg DNSConfig, resolver NetResolver, logger *zap.Logger) rep
 // ResolveIPs resolves domain name to IPv4 addresses
 func (r *dnsResolverImpl) ResolveIPs(ctx context.Context, domain string) ([]string, error) {
 	r.logger.Debug("Starting DNS resolution",
-		zap.String("domain", domain),
-		zap.Duration("timeout", r.timeout),
-		zap.Int("retryAttempts", r.retryAttempts))
+		slog.String("domain", domain),
+		slog.Duration("timeout", r.timeout),
+		slog.Int("retryAttempts", r.retryAttempts))
 
 	var lastErr error
 	for attempt := 0; attempt <= r.retryAttempts; attempt++ {
 		r.logger.Debug("DNS resolution attempt",
-			zap.String("domain", domain),
-			zap.Int("attempt", attempt+1),
-			zap.Int("maxAttempts", r.retryAttempts+1))
+			slog.String("domain", domain),
+			slog.Int("attempt", attempt+1),
+			slog.Int("maxAttempts", r.retryAttempts+1))
 
 		ips, err := r.resolveWithTimeout(ctx, domain)
 		if err != nil {
 			lastErr = err
 			r.logger.Warn("DNS resolution attempt failed",
-				zap.String("domain", domain),
-				zap.Int("attempt", attempt),
-				zap.Error(err))
+				slog.String("domain", domain),
+				slog.Int("attempt", attempt),
+				slog.Any("error", err))
 
 			// Don't sleep after the last attempt
 			if attempt < r.retryAttempts {
@@ -78,16 +78,16 @@ func (r *dnsResolverImpl) ResolveIPs(ctx context.Context, domain string) ([]stri
 
 		// Success
 		r.logger.Info("Successfully resolved domain",
-			zap.String("domain", domain),
-			zap.Int("ipCount", len(ips)),
-			zap.Strings("ips", ips))
+			slog.String("domain", domain),
+			slog.Int("ipCount", len(ips)),
+			slog.Any("ips", ips))
 		return ips, nil
 	}
 
 	r.logger.Error("All DNS resolution attempts failed",
-		zap.String("domain", domain),
-		zap.Int("totalAttempts", r.retryAttempts+1),
-		zap.Error(lastErr))
+		slog.String("domain", domain),
+		slog.Int("totalAttempts", r.retryAttempts+1),
+		slog.Any("error", lastErr))
 
 	return nil, fmt.Errorf("failed to resolve domain %s after %d attempts: %w",
 		domain, r.retryAttempts+1, lastErr)
@@ -116,8 +116,8 @@ func (r *dnsResolverImpl) resolveWithTimeout(ctx context.Context, domain string)
 	}
 
 	r.logger.Debug("IPv4 addresses resolved",
-		zap.String("domain", domain),
-		zap.Int("count", len(ipv4Addrs)))
+		slog.String("domain", domain),
+		slog.Int("count", len(ipv4Addrs)))
 
 	return ips, nil
 }

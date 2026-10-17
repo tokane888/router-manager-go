@@ -3,10 +3,10 @@ package db
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"go.uber.org/zap"
 )
 
 // Default values for database connection pool configuration
@@ -21,7 +21,7 @@ const (
 // DB represents a database connection
 type DB struct {
 	pool *pgxpool.Pool
-	log  *zap.Logger
+	log  *slog.Logger
 }
 
 // Config holds database connection configuration
@@ -52,7 +52,7 @@ func NewDefaultConfig() Config {
 }
 
 // NewDB creates a new database connection pool using pgx
-func NewDB(config Config, log *zap.Logger) (*DB, error) {
+func NewDB(config Config, log *slog.Logger) (*DB, error) {
 	// Build PostgreSQL connection string for pgx
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
 		config.User, config.Password, config.Host, config.Port, config.DBName, config.SSLMode)
@@ -74,7 +74,7 @@ func NewDB(config Config, log *zap.Logger) (*DB, error) {
 	// Configure pgxpool
 	poolConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		log.Error("Failed to parse database config", zap.Error(err))
+		log.Error("Failed to parse database config", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to parse database config: %w", err)
 	}
 
@@ -86,22 +86,22 @@ func NewDB(config Config, log *zap.Logger) (*DB, error) {
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {
-		log.Error("Failed to create connection pool", zap.Error(err))
+		log.Error("Failed to create connection pool", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to create connection pool: %w", err)
 	}
 
 	// Test connection
 	if err := pool.Ping(context.Background()); err != nil {
-		log.Error("Failed to ping database", zap.Error(err))
+		log.Error("Failed to ping database", slog.Any("error", err))
 		pool.Close()
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
 	log.Info("Database connection pool established",
-		zap.Int32("maxConns", config.MaxOpenConns),
-		zap.Int32("minConns", config.MaxIdleConns),
-		zap.Duration("maxLifetime", config.MaxLifetime),
-		zap.Duration("maxIdleTime", config.MaxIdleTime))
+		slog.Any("maxConns", config.MaxOpenConns),
+		slog.Any("minConns", config.MaxIdleConns),
+		slog.Duration("maxLifetime", config.MaxLifetime),
+		slog.Duration("maxIdleTime", config.MaxIdleTime))
 
 	return &DB{pool: pool, log: log}, nil
 }

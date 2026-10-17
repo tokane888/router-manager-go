@@ -3,10 +3,9 @@ package firewall
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 // NFTablesManager implements the FirewallManager interface for nftables
@@ -21,7 +20,7 @@ type NFTablesManagerConfig struct {
 }
 
 type NFTablesManager struct {
-	logger    *zap.Logger
+	logger    *slog.Logger
 	dryRun    bool   // For development environments
 	family    string // nftables address family
 	tableName string // nftables table name
@@ -29,7 +28,7 @@ type NFTablesManager struct {
 }
 
 // NewNFTablesManager creates a new nftables manager implementation
-func NewNFTablesManager(cfg NFTablesManagerConfig, logger *zap.Logger) *NFTablesManager {
+func NewNFTablesManager(cfg NFTablesManagerConfig, logger *slog.Logger) *NFTablesManager {
 	return &NFTablesManager{
 		logger:    logger,
 		dryRun:    cfg.DryRun,
@@ -42,11 +41,11 @@ func NewNFTablesManager(cfg NFTablesManagerConfig, logger *zap.Logger) *NFTables
 // AddBlockRule adds a blocking rule for the specified IP
 func (n *NFTablesManager) AddBlockRule(ctx context.Context, ip string) error {
 	if n.dryRun {
-		n.logger.Info("DRY RUN: Would add nftables rule", zap.String("ip", ip))
+		n.logger.Info("DRY RUN: Would add nftables rule", slog.String("ip", ip))
 		return nil
 	}
 
-	n.logger.Info("Adding nftables rule", zap.String("ip", ip))
+	n.logger.Info("Adding nftables rule", slog.String("ip", ip))
 
 	// Check if table and chain exist (do not create)
 	if err := n.ensureTableAndChainExist(ctx); err != nil {
@@ -60,50 +59,50 @@ func (n *NFTablesManager) AddBlockRule(ctx context.Context, ip string) error {
 		return fmt.Errorf("failed to insert blocking rule for IP %s: %w", ip, err)
 	}
 
-	n.logger.Info("Successfully inserted nftables rule at the beginning of chain", zap.String("ip", ip))
+	n.logger.Info("Successfully inserted nftables rule at the beginning of chain", slog.String("ip", ip))
 	return nil
 }
 
 // RemoveBlockRule removes a blocking rule for the specified IP
 func (n *NFTablesManager) RemoveBlockRule(ctx context.Context, ip string) error {
 	if n.dryRun {
-		n.logger.Info("DRY RUN: Would remove nftables rule", zap.String("ip", ip))
+		n.logger.Info("DRY RUN: Would remove nftables rule", slog.String("ip", ip))
 		return nil
 	}
 
-	n.logger.Info("Removing nftables rule", zap.String("ip", ip))
+	n.logger.Info("Removing nftables rule", slog.String("ip", ip))
 
 	// Delete the specific rule (nftables will find and remove the matching rule)
 	args := []string{"delete", "rule", n.family, n.tableName, n.chainName, "ip", "daddr", ip, "drop"}
 	if err := n.executeCommand(ctx, args); err != nil {
 		// If the rule doesn't exist, nftables will return an error, but we can log and continue
 		n.logger.Warn("Failed to remove nftables rule (may not exist)",
-			zap.String("ip", ip),
-			zap.Error(err))
+			slog.String("ip", ip),
+			slog.Any("error", err))
 		return nil // Don't return error to continue processing other IPs
 	}
 
-	n.logger.Info("Successfully removed nftables rule", zap.String("ip", ip))
+	n.logger.Info("Successfully removed nftables rule", slog.String("ip", ip))
 	return nil
 }
 
 // executeCommand executes nftables commands
 func (n *NFTablesManager) executeCommand(ctx context.Context, args []string) error {
-	n.logger.Debug("Executing nft command", zap.Strings("args", args))
+	n.logger.Debug("Executing nft command", slog.Any("args", args))
 
 	cmd := exec.CommandContext(ctx, "nft", args...) //nolint:gosec // G204: args are internally generated (config values and DNS results), not external input
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		n.logger.Error("nft command failed",
-			zap.Strings("args", args),
-			zap.String("output", string(output)),
-			zap.Error(err))
+			slog.Any("args", args),
+			slog.String("output", string(output)),
+			slog.Any("error", err))
 		return fmt.Errorf("nft command failed: %s: %w", string(output), err)
 	}
 
 	n.logger.Debug("nft command executed successfully",
-		zap.Strings("args", args),
-		zap.String("output", string(output)))
+		slog.Any("args", args),
+		slog.String("output", string(output)))
 
 	return nil
 }
@@ -114,9 +113,9 @@ func (n *NFTablesManager) ensureTableAndChainExist(ctx context.Context) error {
 	checkTableArgs := []string{"list", "table", n.family, n.tableName}
 	if err := n.executeCommand(ctx, checkTableArgs); err != nil {
 		n.logger.Error("Table does not exist",
-			zap.String("family", n.family),
-			zap.String("table", n.tableName),
-			zap.Error(err))
+			slog.String("family", n.family),
+			slog.String("table", n.tableName),
+			slog.Any("error", err))
 		return fmt.Errorf("table %s in family %s does not exist: %w", n.tableName, n.family, err)
 	}
 
@@ -124,10 +123,10 @@ func (n *NFTablesManager) ensureTableAndChainExist(ctx context.Context) error {
 	checkChainArgs := []string{"list", "chain", n.family, n.tableName, n.chainName}
 	if err := n.executeCommand(ctx, checkChainArgs); err != nil {
 		n.logger.Error("Chain does not exist",
-			zap.String("family", n.family),
-			zap.String("table", n.tableName),
-			zap.String("chain", n.chainName),
-			zap.Error(err))
+			slog.String("family", n.family),
+			slog.String("table", n.tableName),
+			slog.String("chain", n.chainName),
+			slog.Any("error", err))
 		return fmt.Errorf("chain %s in table %s (family %s) does not exist: %w", n.chainName, n.tableName, n.family, err)
 	}
 

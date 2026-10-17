@@ -3,9 +3,8 @@ package system
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -16,13 +15,13 @@ const (
 
 // RebootDetector handles reboot detection and cleanup
 type RebootDetector struct {
-	logger   *zap.Logger
+	logger   *slog.Logger
 	flagDir  string
 	flagFile string
 }
 
 // NewRebootDetector creates a new reboot detector
-func NewRebootDetector(logger *zap.Logger) *RebootDetector {
+func NewRebootDetector(logger *slog.Logger) *RebootDetector {
 	return &RebootDetector{
 		logger:   logger,
 		flagDir:  flagDir,
@@ -39,7 +38,7 @@ func (rd *RebootDetector) CheckAndHandleReboot(ctx context.Context) (bool, error
 		return false, nil
 	} else if !os.IsNotExist(err) {
 		// Stat failed for reason other than file not existing
-		rd.logger.Error("Failed to check flag file", zap.Error(err))
+		rd.logger.Error("Failed to check flag file", slog.Any("error", err))
 		return false, fmt.Errorf("failed to check flag file: %w", err)
 	}
 
@@ -48,13 +47,13 @@ func (rd *RebootDetector) CheckAndHandleReboot(ctx context.Context) (bool, error
 
 	// Create flag directory if it doesn't exist
 	if err := os.MkdirAll(rd.flagDir, 0o750); err != nil {
-		rd.logger.Error("Failed to create flag directory", zap.Error(err))
+		rd.logger.Error("Failed to create flag directory", slog.Any("error", err))
 		return true, fmt.Errorf("failed to create flag directory: %w", err)
 	}
 
 	// Create flag file
 	if err := rd.createFlagFile(); err != nil {
-		rd.logger.Error("Failed to create flag file", zap.Error(err))
+		rd.logger.Error("Failed to create flag file", slog.Any("error", err))
 		// Return true anyway - cleanup is still needed
 		return true, nil
 	}
@@ -70,7 +69,7 @@ func (rd *RebootDetector) createFlagFile() error {
 	}
 	defer func() {
 		if closeErr := file.Close(); closeErr != nil {
-			rd.logger.Warn("Failed to close flag file", zap.Error(closeErr))
+			rd.logger.Warn("Failed to close flag file", slog.Any("error", closeErr))
 		}
 	}()
 
@@ -79,6 +78,6 @@ func (rd *RebootDetector) createFlagFile() error {
 		return fmt.Errorf("failed to write to flag file: %w", err)
 	}
 
-	rd.logger.Info("Created flag file", zap.String("file", rd.flagFile))
+	rd.logger.Info("Created flag file", slog.String("file", rd.flagFile))
 	return nil
 }

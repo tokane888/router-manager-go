@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	"go.uber.org/zap"
 )
 
 // Domain repository operations
@@ -20,15 +20,15 @@ func (db *DB) CreateDomain(ctx context.Context, domainName string) error {
 		// Check if it's a PostgreSQL unique constraint violation (error code 23505)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			db.log.Warn("Domain already exists", zap.String("domain", domainName))
+			db.log.Warn("Domain already exists", slog.String("domain", domainName))
 			return fmt.Errorf("failed to create domain %s: %w", domainName, ErrDomainAlreadyExists)
 		}
 
-		db.log.Error("Failed to create domain", zap.String("domain", domainName), zap.Error(err))
+		db.log.Error("Failed to create domain", slog.String("domain", domainName), slog.Any("error", err))
 		return fmt.Errorf("failed to create domain %s: %w", domainName, err)
 	}
 
-	db.log.Info("Domain created successfully", zap.String("domain", domainName))
+	db.log.Info("Domain created successfully", slog.String("domain", domainName))
 	return nil
 }
 
@@ -38,7 +38,7 @@ func (db *DB) GetAllDomains(ctx context.Context) ([]Domain, error) {
 
 	rows, err := db.pool.Query(ctx, query)
 	if err != nil {
-		db.log.Error("Failed to get all domains", zap.Error(err))
+		db.log.Error("Failed to get all domains", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to get all domains: %w", err)
 	}
 	defer rows.Close()
@@ -52,14 +52,14 @@ func (db *DB) GetAllDomains(ctx context.Context) ([]Domain, error) {
 			&domain.UpdatedAt,
 		)
 		if err != nil {
-			db.log.Error("Failed to scan domain row", zap.Error(err))
+			db.log.Error("Failed to scan domain row", slog.Any("error", err))
 			return nil, fmt.Errorf("failed to scan domain row: %w", err)
 		}
 		domains = append(domains, domain)
 	}
 
 	if err := rows.Err(); err != nil {
-		db.log.Error("Failed to iterate domain rows", zap.Error(err))
+		db.log.Error("Failed to iterate domain rows", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to iterate domain rows: %w", err)
 	}
 
@@ -78,21 +78,21 @@ func (db *DB) CreateDomainIP(ctx context.Context, domainName, ipAddress string) 
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			db.log.Warn("Domain IP already exists",
-				zap.String("domain", domainName),
-				zap.String("ip", ipAddress))
+				slog.String("domain", domainName),
+				slog.String("ip", ipAddress))
 			return fmt.Errorf("failed to create domain IP %s for %s: %w", ipAddress, domainName, ErrDomainIPAlreadyExists)
 		}
 
 		db.log.Error("Failed to create domain IP",
-			zap.String("domain", domainName),
-			zap.String("ip", ipAddress),
-			zap.Error(err))
+			slog.String("domain", domainName),
+			slog.String("ip", ipAddress),
+			slog.Any("error", err))
 		return fmt.Errorf("failed to create domain IP %s for %s: %w", ipAddress, domainName, err)
 	}
 
 	db.log.Info("Domain IP created successfully",
-		zap.String("domain", domainName),
-		zap.String("ip", ipAddress))
+		slog.String("domain", domainName),
+		slog.String("ip", ipAddress))
 	return nil
 }
 
@@ -103,7 +103,7 @@ func (db *DB) GetDomainIPs(ctx context.Context, domainName string) ([]DomainIP, 
 
 	rows, err := db.pool.Query(ctx, query, domainName)
 	if err != nil {
-		db.log.Error("Failed to get domain IPs", zap.String("domain", domainName), zap.Error(err))
+		db.log.Error("Failed to get domain IPs", slog.String("domain", domainName), slog.Any("error", err))
 		return nil, fmt.Errorf("failed to get domain IPs for %s: %w", domainName, err)
 	}
 	defer rows.Close()
@@ -119,14 +119,14 @@ func (db *DB) GetDomainIPs(ctx context.Context, domainName string) ([]DomainIP, 
 			&domainIP.UpdatedAt,
 		)
 		if err != nil {
-			db.log.Error("Failed to scan domain IP row", zap.Error(err))
+			db.log.Error("Failed to scan domain IP row", slog.Any("error", err))
 			return nil, fmt.Errorf("failed to scan domain IP row: %w", err)
 		}
 		domainIPs = append(domainIPs, domainIP)
 	}
 
 	if err := rows.Err(); err != nil {
-		db.log.Error("Failed to iterate domain IP rows", zap.Error(err))
+		db.log.Error("Failed to iterate domain IP rows", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to iterate domain IP rows: %w", err)
 	}
 
@@ -139,9 +139,9 @@ func (db *DB) DeleteDomainIP(ctx context.Context, domainName, ipAddress string) 
 	result, err := db.pool.Exec(ctx, query, domainName, ipAddress)
 	if err != nil {
 		db.log.Error("Failed to delete domain IP",
-			zap.String("domain", domainName),
-			zap.String("ip", ipAddress),
-			zap.Error(err))
+			slog.String("domain", domainName),
+			slog.String("ip", ipAddress),
+			slog.Any("error", err))
 		return fmt.Errorf("failed to delete domain IP %s for %s: %w", ipAddress, domainName, err)
 	}
 
@@ -151,8 +151,8 @@ func (db *DB) DeleteDomainIP(ctx context.Context, domainName, ipAddress string) 
 	}
 
 	db.log.Info("Domain IP deleted successfully",
-		zap.String("domain", domainName),
-		zap.String("ip", ipAddress))
+		slog.String("domain", domainName),
+		slog.String("ip", ipAddress))
 	return nil
 }
 
@@ -163,7 +163,7 @@ func (db *DB) GetAllDomainIPs(ctx context.Context) ([]DomainIP, error) {
 
 	rows, err := db.pool.Query(ctx, query)
 	if err != nil {
-		db.log.Error("Failed to get all domain IPs", zap.Error(err))
+		db.log.Error("Failed to get all domain IPs", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to get all domain IPs: %w", err)
 	}
 	defer rows.Close()
@@ -179,14 +179,14 @@ func (db *DB) GetAllDomainIPs(ctx context.Context) ([]DomainIP, error) {
 			&domainIP.UpdatedAt,
 		)
 		if err != nil {
-			db.log.Error("Failed to scan domain IP row", zap.Error(err))
+			db.log.Error("Failed to scan domain IP row", slog.Any("error", err))
 			return nil, fmt.Errorf("failed to scan domain IP row: %w", err)
 		}
 		domainIPs = append(domainIPs, domainIP)
 	}
 
 	if err := rows.Err(); err != nil {
-		db.log.Error("Failed to iterate domain IP rows", zap.Error(err))
+		db.log.Error("Failed to iterate domain IP rows", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to iterate domain IP rows: %w", err)
 	}
 
@@ -199,9 +199,9 @@ func (db *DB) UpdateDomainIPUpdatedAt(ctx context.Context, domainName, ipAddress
 	result, err := db.pool.Exec(ctx, query, domainName, ipAddress)
 	if err != nil {
 		db.log.Error("Failed to update domain IP updated_at",
-			zap.String("domain", domainName),
-			zap.String("ip", ipAddress),
-			zap.Error(err))
+			slog.String("domain", domainName),
+			slog.String("ip", ipAddress),
+			slog.Any("error", err))
 		return fmt.Errorf("failed to update domain IP updated_at for %s/%s: %w", domainName, ipAddress, err)
 	}
 
@@ -210,8 +210,8 @@ func (db *DB) UpdateDomainIPUpdatedAt(ctx context.Context, domainName, ipAddress
 	}
 
 	db.log.Debug("Domain IP updated_at refreshed",
-		zap.String("domain", domainName),
-		zap.String("ip", ipAddress))
+		slog.String("domain", domainName),
+		slog.String("ip", ipAddress))
 	return nil
 }
 
@@ -222,7 +222,7 @@ func (db *DB) DeleteExpiredDomainIPs(ctx context.Context, cutoff time.Time) ([]D
 
 	rows, err := db.pool.Query(ctx, query, cutoff)
 	if err != nil {
-		db.log.Error("Failed to delete expired domain IPs", zap.Error(err))
+		db.log.Error("Failed to delete expired domain IPs", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to delete expired domain IPs: %w", err)
 	}
 	defer rows.Close()
@@ -237,17 +237,17 @@ func (db *DB) DeleteExpiredDomainIPs(ctx context.Context, cutoff time.Time) ([]D
 			&domainIP.CreatedAt,
 			&domainIP.UpdatedAt,
 		); err != nil {
-			db.log.Error("Failed to scan deleted domain IP row", zap.Error(err))
+			db.log.Error("Failed to scan deleted domain IP row", slog.Any("error", err))
 			return nil, fmt.Errorf("failed to scan deleted domain IP row: %w", err)
 		}
 		deleted = append(deleted, domainIP)
 	}
 
 	if err := rows.Err(); err != nil {
-		db.log.Error("Failed to iterate deleted domain IP rows", zap.Error(err))
+		db.log.Error("Failed to iterate deleted domain IP rows", slog.Any("error", err))
 		return nil, fmt.Errorf("failed to iterate deleted domain IP rows: %w", err)
 	}
 
-	db.log.Info("Expired domain IPs deleted", zap.Int("count", len(deleted)))
+	db.log.Info("Expired domain IPs deleted", slog.Int("count", len(deleted)))
 	return deleted, nil
 }

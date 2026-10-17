@@ -14,7 +14,7 @@ import (
 type Config struct {
 	Env          string
 	RouterConfig router.RouterConfig
-	Logger       logger.LoggerConfig
+	Logger       logger.Config
 	// 必要に応じてDatabaseConfig等各structへ注入する設定追加
 }
 
@@ -37,8 +37,7 @@ func NewConfig(version string) (*Config, error) {
 		RouterConfig: router.RouterConfig{
 			Port: port,
 		},
-		Logger: logger.LoggerConfig{
-			AppName:    getEnv("APP_NAME", ""),
+		Logger: logger.Config{
 			AppVersion: version,
 			Level:      getEnv("LOG_LEVEL", "info"),
 			Format:     getEnv("LOG_FORMAT", "local"),

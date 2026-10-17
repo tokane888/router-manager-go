@@ -18,7 +18,7 @@ import (
 // Config represents the application configuration
 type Config struct {
 	Env        string
-	Logger     logger.LoggerConfig
+	Logger     logger.Config
 	Database   db.Config
 	DNS        dns.DNSConfig
 	NFTables   firewall.NFTablesManagerConfig
@@ -86,8 +86,7 @@ func NewConfig(version string) (*Config, error) {
 
 	cfg := &Config{
 		Env: env,
-		Logger: logger.LoggerConfig{
-			AppName:    getEnv("APP_NAME", ""),
+		Logger: logger.Config{
 			AppVersion: version,
 			Level:      logLevel,
 			Format:     logFormat,

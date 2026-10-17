@@ -58,6 +58,7 @@
     "nftables",
     "nolint",
     "oneshot",
+    "parseability",
     "pgconn",
     "pgxpool",
     "pkglogger",
