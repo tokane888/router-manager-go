@@ -1,6 +1,6 @@
 module github.com/tokane888/router-manager-go/pkg/db
 
-go 1.26.3
+go 1.27.2
 
 require (
 	github.com/jackc/pgx/v5 v5.9.2

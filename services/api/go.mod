@@ -1,6 +1,6 @@
 module github.com/tokane888/router-manager-go/services/api
 
-go 1.26.3
+go 1.27.2
 
 require (
 	github.com/gin-gonic/gin v1.12.0
